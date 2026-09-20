@@ -25,12 +25,14 @@ Phase 0の完成条件は次のとおりです。
 - [IP Guidelines](docs/IP_GUIDELINES.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Current State](docs/CURRENT_STATE.md)
+- [Unity Setup](docs/UNITY_SETUP.md)
 - [References](docs/REFERENCES.md)
+- [ADR-0001: PC Controls](docs/adr/ADR-0001-pc-controls.md)
 
 ## 実装順
 
-1. 仕様レビューと未決事項の決定
-2. Unityプロジェクト生成とテスト基盤
+1. Unityプロジェクト生成とテスト基盤
+2. Unity bootstrap検証
 3. 移動・照準
 4. 射撃・3発制限
 5. 決定論的な反射計算

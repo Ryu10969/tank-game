@@ -19,6 +19,8 @@ Last updated: 2026-09-20
 
 Unity 6000.3.11f1は、公式リリースページでmacOS、macOS ARM64およびWebGL build supportが提供されていることを確認した固定版である。最新版へ自動追随せず、変更時は検証ブランチでWebビルドとテストを再実行する。
 
+プロジェクトはUnity Hubの`Universal 3D`テンプレートから生成する。URP、Input System、Test Frameworkが`Packages/manifest.json`に存在し、`ProjectSettings/ProjectVersion.txt`が固定Editor版と一致した場合のみbootstrap完了とする。
+
 ## 2. Dependency direction
 
 ```text
@@ -63,6 +65,8 @@ Phase 0では次を実装する。
 - `BotTankController`
 
 将来の `NetworkTankController` はPhase 0では作らない。
+
+`HumanTankController`はUnity Input Systemから入力を読み取るが、Gameplay層へ渡す値は移動ベクトル、照準点、単発の射撃要求に限定する。キーコードやマウスAPIをGameplay層へ漏らさない。
 
 ## 5. Projectile architecture
 
