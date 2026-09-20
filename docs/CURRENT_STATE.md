@@ -1,10 +1,10 @@
 # CURRENT_STATE
 
-Last updated: 2026-09-20
+Last updated: 2026-09-21
 
 ## Overall status
 
-`UNITY BOOTSTRAP REQUIRED — NOT READY FOR GAMEPLAY IMPLEMENTATION`
+`UNITY BOOTSTRAP VERIFIED — READY FOR CORE VERTICAL SLICE`
 
 ## Completed
 
@@ -27,8 +27,6 @@ Last updated: 2026-09-20
 
 - GAMEPLAY_SPECに残る移動速度・弾丸数値の確定
 - 成功指標の目標値確定
-- Unityプロジェクト生成
-- Unity package versionの確定
 - EditMode / PlayModeテスト基盤
 - ゲームコード
 - アートアセット
@@ -42,10 +40,17 @@ Last updated: 2026-09-20
 - 射撃: 左クリック、押下1回につき1発
 - タッチ操作: Phase 0 PC操作確立後
 
-## Current blocker
+## Bootstrap verification
 
-Unity Editorを使用していないため、`Assets`、`Packages`、`ProjectSettings`の正式な生成とコンパイル検証が未完了。
+- Unity 6000.3.11f1 batchmode import/compile: exit 0、コンパイルエラーなし。
+- `scripts/verify-unity-bootstrap.sh`: PASS。
+- URP 17.3.0 / Input System 1.19.0 / Test Framework 1.6.0（既存lock file）。
+- Company: Ryu10969 / Product: Tank Game。
+- SampleSceneとmetaを削除。Mainのみを有効な先頭ビルドシーンに登録。
+- 既存の `.slnx` 除外変更を保持。
+- sandbox内ではUPM socketが拒否されたため、許可されたsandbox外実行で検証。
+- import終了時にCurl error 42（callback aborted）が1件。コンパイルエラーではない。
 
 ## Next action
 
-MacのUnity HubでUnity 6000.3.11f1とWeb Build Supportを導入し、`docs/UNITY_SETUP.md`に従って`Universal 3D`プロジェクトを生成する。`scripts/verify-unity-bootstrap.sh`成功後に移動・照準の実装へ進む。
+初期構成コミット直後に `feat/core-vertical-slice` を作成し、1ステージの中間Vertical Sliceを実装する。
