@@ -78,7 +78,7 @@ Phase 0では次を実装する。
 4. 壁なら法線から反射方向を計算する。
 5. 残り距離を同一フレーム内で処理する。
 6. 戦車ならHit eventを発行する。
-7. 寿命または最大反射回数に達したらDespawnする。
+7. 寿命、または許容反射回数を使い切った後の次の壁衝突でDespawnする。
 
 反射ベクトル計算、残距離計算、発射枠管理はEditModeテスト対象とする。
 
@@ -113,3 +113,8 @@ WebGLでオンライン対応するPhaseでは、Photon公式がWebGLにShared M
 - Unity Consoleに新規Errorがない。
 - Web対象コードで未対応APIを使用していない。
 - `CURRENT_STATE.md` が実態と一致する。
+
+## Core slice milestone
+
+ADR-0002とGAMEPLAY_SPEC §9に従い、Stage 1のVictory/Defeat→Restartのみを実装する。
+Stage定義はScriptableObject。EditorコードはTankGame.Editorへ分離する。

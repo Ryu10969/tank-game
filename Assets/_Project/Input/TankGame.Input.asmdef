@@ -1,0 +1,9 @@
+{
+  "name": "TankGame.Input",
+  "references": [
+    "TankGame.Core",
+    "TankGame.Gameplay",
+    "Unity.InputSystem"
+  ],
+  "noEngineReferences": false
+}
