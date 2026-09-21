@@ -1,0 +1,13 @@
+{
+  "name": "TankGame.Editor",
+  "references": [
+    "TankGame.Core",
+    "TankGame.Gameplay",
+    "TankGame.Input",
+    "TankGame.Presentation"
+  ],
+  "noEngineReferences": false,
+  "includePlatforms": [
+    "Editor"
+  ]
+}

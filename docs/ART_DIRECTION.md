@@ -1,7 +1,7 @@
 # ART_DIRECTION
 
 Status: Draft for owner review
-Last updated: 2026-09-20
+Last updated: 2026-09-22
 
 ## 1. Visual identity
 
@@ -64,3 +64,7 @@ Stage 2以降の見た目を作る前に、Stage 1について次をプロダク
 - 砲弾の視認性
 - 影の濃さ
 - 発射・反射・撃破VFX
+
+2026-09-22のStage 2は複数Stage構造の検証用Grayboxとして、Stage 1と同じ標準
+プリミティブ・単色マテリアルを再利用する。新しい本番アートや外観テーマの制作ではないため、
+本節の承認対象を先行量産したものとは扱わない。Stage 2以降の本番外観制作前には本節を適用する。

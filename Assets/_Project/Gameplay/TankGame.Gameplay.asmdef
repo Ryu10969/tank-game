@@ -1,0 +1,7 @@
+{
+  "name": "TankGame.Gameplay",
+  "references": [
+    "TankGame.Core"
+  ],
+  "noEngineReferences": false
+}

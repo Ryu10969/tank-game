@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae1e2c9a5b29a4f0a832d9021fdb2799, type: 3}
+  m_Name: Stage1
+  m_EditorClassIdentifier: TankGame.Gameplay::TankGame.Gameplay.StageDefinition
+  stageId: 1
+  size: {x: 20, y: 14}
+  playerSpawn: {x: -6, y: -3}
+  enemySpawns:
+  - {x: 6, y: 3}
+  walls:
+  - center: {x: 0, y: 0}
+    size: {x: 2, y: 4}
+  botSettings: {fileID: 11400000, guid: 465a7d5942db6497fa2c68a7468593bf, type: 2}
+  themeId: wood-prototype
+  patrolPoints:
+  - {x: 6, y: -3}
+  - {x: 6, y: 3}
+  boundaryThickness: 1

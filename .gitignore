@@ -27,3 +27,6 @@ Thumbs.db
 *.apk
 *.aab
 *.ipa
+
+# Unity-generated solution files
+*.slnx

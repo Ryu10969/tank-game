@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82a05deb5077f4d95949fde1d2bc68ca, type: 3}
+  m_Name: PrototypePresentation
+  m_EditorClassIdentifier: TankGame.Presentation::TankGame.Presentation.PrototypePresentation
+  floor: {fileID: 2100000, guid: 50a5331dff6ca4d28b7993815b4a5189, type: 2}
+  wall: {fileID: 2100000, guid: 025e0a0da387e40d8b4be2fa689644f4, type: 2}
+  player: {fileID: 2100000, guid: 67b0a303728a046d7a7f98688ceb2ae0, type: 2}
+  enemy: {fileID: 2100000, guid: 142dbae459bf948e18b342991b4ad49b, type: 2}
+  trim: {fileID: 2100000, guid: 9147a4250860743cb9f00916ff6fdbce, type: 2}
+  projectile: {fileID: 2100000, guid: 9f63792ca4d3c4b728faf8ff36ed60e9, type: 2}
+  wallHeight: 1.5
+  floorThickness: 0.3
+  cameraSize: 10.5
+  cameraPosition: {x: 0, y: 18, z: -10.3923}
+  cameraAngles: {x: 60, y: 0, z: 0}
+  bodyScale: {x: 0.85, y: 0.35, z: 1.1}
+  treadScale: {x: 0.18, y: 0.27, z: 1.15}
+  treadOffset: 0.46
+  turretPosition: {x: 0, y: 0.25, z: 0}
+  turretScale: {x: 0.55, y: 0.22, z: 0.55}
+  barrelPosition: {x: 0, y: 0, z: 0.5}
+  barrelScale: {x: 0.16, y: 0.16, z: 0.8}
