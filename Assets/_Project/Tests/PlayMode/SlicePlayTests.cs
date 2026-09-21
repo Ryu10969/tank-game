@@ -24,7 +24,8 @@ namespace TankGame.Tests.PlayMode
         }
         [Test] public void MainHasValidReferencesAndStageOne()
         {
-            Assert.That(bootstrap.stage.stageId, Is.EqualTo(1)); Assert.That(session.Tanks.Count, Is.GreaterThanOrEqualTo(2));
+            Assert.That(bootstrap.stages.Length, Is.EqualTo(2));
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(1)); Assert.That(session.Tanks.Count, Is.GreaterThanOrEqualTo(2));
             foreach (var component in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
                 foreach (var attached in component.GetComponents<Component>()) Assert.That(attached, Is.Not.Null, component.name);
             Assert.That(bootstrap.gameCamera.orthographic, Is.True);
@@ -44,19 +45,26 @@ namespace TankGame.Tests.PlayMode
             Assert.That(Vector3.Dot(p.Direction, direction), Is.GreaterThan(0.99f));
             return p;
         }
-        [Test] public void RealWallsReflectTwiceThenDespawnWithinOneFrame()
+        [Test] public void PlayerProjectileReflectsOnceThenSecondWallDespawnsIt()
         {
             Player.Turret.rotation = Quaternion.LookRotation(Vector3.right);
             var p = FreeProjectile(new Vector3(0, session.Settings.planeHeight, -5), Vector3.right);
             p.Advance(10); Assert.That(p.Rules.Reflections, Is.EqualTo(1)); Assert.That(p.IsAlive, Is.True); Assert.That(p.Direction.x, Is.LessThan(0));
-            p.Advance(20); Assert.That(p.Rules.Reflections, Is.EqualTo(2)); Assert.That(p.IsAlive, Is.True); Assert.That(p.Direction.x, Is.GreaterThan(0));
-            p.Advance(20); Assert.That(p.IsAlive, Is.False); Assert.That(Player.Slots.Active, Is.Zero);
+            p.Advance(20); Assert.That(p.Rules.Reflections, Is.EqualTo(1)); Assert.That(p.IsAlive, Is.False); Assert.That(Player.Slots.Active, Is.Zero);
         }
         [Test] public void LargeFrameProcessesRemainingTravelAcrossMultipleWalls()
         {
             Player.Turret.rotation = Quaternion.LookRotation(Vector3.right);
             var p = FreeProjectile(new Vector3(0, session.Settings.planeHeight, -5), Vector3.right);
-            p.Advance(60); Assert.That(p.Rules.Reflections, Is.EqualTo(2)); Assert.That(p.IsAlive, Is.False);
+            p.Advance(60); Assert.That(p.Rules.Reflections, Is.EqualTo(1)); Assert.That(p.IsAlive, Is.False);
+        }
+        [Test] public void EnemyProjectileUsesTheSameOneReflectionLimit()
+        {
+            Enemy.transform.position = new Vector3(0, session.Settings.planeHeight, -5);
+            Enemy.Turret.rotation = Quaternion.LookRotation(Vector3.right); Physics.SyncTransforms();
+            Assert.That(Enemy.TryFire(), Is.True); var p = session.Projectiles[0];
+            p.Advance(10); Assert.That(p.Rules.Reflections, Is.EqualTo(1)); Assert.That(p.IsAlive, Is.True);
+            p.Advance(20); Assert.That(p.IsAlive, Is.False); Assert.That(Enemy.Slots.Active, Is.Zero);
         }
         [Test] public void ProjectileHitDestroysEnemyAndWins()
         {
@@ -81,6 +89,68 @@ namespace TankGame.Tests.PlayMode
             yield return null;
             Assert.That(old == null, Is.True); Assert.That(bootstrap.Session.Rules.State, Is.EqualTo(MatchState.Playing));
             Assert.That(bootstrap.Session.Player.Slots.Available, Is.EqualTo(3)); Assert.That(bootstrap.Session.Projectiles, Is.Empty);
+            Assert.That(Object.FindObjectsByType<GameSession>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+        }
+        [UnityTest] public IEnumerator StageTwoDefeatRestartReturnsCleanStageOne()
+        {
+            Enemy.Hit(); bootstrap.AdvanceStageIfCleared();
+            session = bootstrap.Session; session.AutoTick = false;
+            foreach (var tank in session.Tanks) tank.Controller = null;
+            var oldSession = session; var oldPlayer = Player; var oldEnemy = Enemy;
+            Assert.That(Player.TryFire(), Is.True); var oldProjectile = session.Projectiles[0];
+            Assert.That(Player.Slots.Available, Is.EqualTo(2)); Assert.That(session.Projectiles.Count, Is.EqualTo(1));
+            Player.Hit(); Assert.That(session.Rules.State, Is.EqualTo(MatchState.Defeat));
+            bootstrap.Restart(); bootstrap.Session.AutoTick = false;
+            yield return null;
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(1));
+            Assert.That(bootstrap.Session.Player.Slots.Available, Is.EqualTo(3));
+            Assert.That(bootstrap.Session.Projectiles, Is.Empty);
+            Assert.That(bootstrap.Session.Rules.State, Is.EqualTo(MatchState.Playing));
+            Assert.That(Object.FindObjectsByType<GameSession>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+            Assert.That(RuntimeRootCount(), Is.EqualTo(1));
+            Assert.That(oldSession == null, Is.True); Assert.That(oldPlayer == null, Is.True);
+            Assert.That(oldEnemy == null, Is.True); Assert.That(oldProjectile == null, Is.True);
+        }
+        [UnityTest] public IEnumerator StageOneClearLoadsDistinctStageTwoOnce()
+        {
+            var stageOneSession = session;
+            Enemy.Hit();
+            Assert.That(bootstrap.AdvanceStageIfCleared(), Is.True);
+            Assert.That(bootstrap.AdvanceStageIfCleared(), Is.False);
+            session = bootstrap.Session; session.AutoTick = false;
+            foreach (var tank in session.Tanks) tank.Controller = null;
+            yield return null;
+            Assert.That(stageOneSession == null, Is.True);
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2));
+            Assert.That(Player.transform.position.x, Is.EqualTo(6).Within(0.001f));
+            Assert.That(Enemy.transform.position.x, Is.EqualTo(-6).Within(0.001f));
+            Assert.That(Object.FindObjectsByType<GameSession>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+        }
+        [UnityTest] public IEnumerator FinalStageVictoryDoesNotLoadMissingStage()
+        {
+            Enemy.Hit(); bootstrap.AdvanceStageIfCleared();
+            session = bootstrap.Session; session.AutoTick = false;
+            foreach (var tank in session.Tanks) tank.Controller = null;
+            Enemy.Hit(); yield return null;
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2));
+            Assert.That(session.Rules.State, Is.EqualTo(MatchState.Victory));
+            Assert.That(bootstrap.AdvanceStageIfCleared(), Is.False);
+        }
+        [UnityTest] public IEnumerator UpdateAutomaticallyAdvancesAndStopsAtFinalVictory()
+        {
+            var stageOneSession = session;
+            Enemy.Hit();
+            yield return null; yield return null;
+            session = bootstrap.Session; session.AutoTick = false;
+            foreach (var tank in session.Tanks) tank.Controller = null;
+            Assert.That(stageOneSession == null, Is.True);
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2));
+            var finalSession = session;
+            Enemy.Hit();
+            yield return null; yield return null;
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2));
+            Assert.That(bootstrap.Session, Is.SameAs(finalSession));
+            Assert.That(finalSession.Rules.State, Is.EqualTo(MatchState.Victory));
             Assert.That(Object.FindObjectsByType<GameSession>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
         }
         [Test] public void LifetimeExpiryReturnsSlot()
@@ -153,6 +223,69 @@ namespace TankGame.Tests.PlayMode
             }
             Object.Destroy(botSettings);
             Assert.That(moved, Is.True); Assert.That(fired, Is.True);
+        }
+        [Test] public void BlockedBotKeepsRepositioningInsteadOfRecoveringInPlace()
+        {
+            var botSettings = ScriptableObject.CreateInstance<BotSettings>();
+            botSettings.reactionTimeSeconds = 0.1f; botSettings.moveDurationSeconds = 0.5f;
+            var controller = new BotTankController(botSettings, new[] { new Vector2(0, 3), new Vector2(3, 0) });
+            int movingCommands = 0;
+            var observation = new TankObservation(Vector3.zero, Vector3.forward * 6, Vector3.forward, 0.1f, false);
+            for (int i = 0; i < 30; i++)
+                if (controller.ReadCommand(in observation).Move.sqrMagnitude > 0) movingCommands++;
+            Object.Destroy(botSettings);
+            Assert.That(movingCommands, Is.GreaterThanOrEqualTo(25));
+            Assert.That(controller.State, Is.EqualTo(BotTankController.BotState.Move));
+        }
+        [Test] public void RuntimeBotRepositionsWhenStageWallBlocksLineOfSight()
+        {
+            Enemy.Controller = new BotTankController(bootstrap.CurrentStage.botSettings, bootstrap.CurrentStage.patrolPoints);
+            var start = Enemy.transform.position;
+            for (int i = 0; i < 12; i++) session.Tick(0.1f);
+            Assert.That(Vector3.Distance(start, Enemy.transform.position), Is.GreaterThan(0.1f));
+            Assert.That(session.Projectiles, Is.Empty);
+        }
+        [Test] public void RuntimeBotRepositionsAfterFiring()
+        {
+            PrepareRuntimeBotForClearShot();
+            Assert.That(TickUntilEnemyFires(), Is.True);
+            var start = Enemy.transform.position;
+            session.Projectiles[0].Despawn();
+            for (int i = 0; i < 10; i++) session.Tick(0.1f);
+            Assert.That(Vector3.Distance(start, Enemy.transform.position), Is.GreaterThan(0.1f));
+        }
+        [Test] public void RuntimeBotKeepsMovingDuringFireCooldown()
+        {
+            PrepareRuntimeBotForClearShot();
+            Assert.That(TickUntilEnemyFires(), Is.True);
+            var start = Enemy.transform.position;
+            session.Projectiles[0].Despawn();
+            for (int i = 0; i < 8; i++) session.Tick(0.1f);
+            Assert.That(Vector3.Distance(start, Enemy.transform.position), Is.GreaterThan(0.1f));
+            Assert.That(session.Projectiles, Is.Empty);
+        }
+        void PrepareRuntimeBotForClearShot()
+        {
+            Player.transform.position = new Vector3(-6, session.Settings.planeHeight, -4);
+            Enemy.transform.position = new Vector3(6, session.Settings.planeHeight, -4);
+            Enemy.Controller = new BotTankController(bootstrap.CurrentStage.botSettings, bootstrap.CurrentStage.patrolPoints);
+            Physics.SyncTransforms();
+        }
+        bool TickUntilEnemyFires()
+        {
+            for (int i = 0; i < 50; i++)
+            {
+                session.Tick(0.1f);
+                if (session.Projectiles.Count > 0) return true;
+            }
+            return false;
+        }
+        int RuntimeRootCount()
+        {
+            int count = 0;
+            foreach (Transform child in bootstrap.transform)
+                if (child.name.EndsWith(" Runtime", System.StringComparison.Ordinal)) count++;
+            return count;
         }
         [Test] public void InvalidAimKeepsDirectionWhileTankMoves()
         {

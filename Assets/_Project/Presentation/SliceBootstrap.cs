@@ -6,26 +6,50 @@ namespace TankGame.Presentation
 {
     public sealed class SliceBootstrap : MonoBehaviour
     {
-        public StageDefinition stage;
+        public StageDefinition[] stages;
         public GameplaySettings settings;
         public PrototypePresentation presentation;
         public Camera gameCamera;
         public GameSession Session { get; private set; }
+        public StageDefinition CurrentStage => progression == null ? null : stages[progression.CurrentIndex];
+        public int CurrentStageId => CurrentStage == null ? 0 : CurrentStage.stageId;
         HumanTankController human;
+        StageProgression progression;
         void Start() { Restart(); }
+        void Update() { AdvanceStageIfCleared(); }
         public void Restart()
+        {
+            if (!EnsureProgression()) return;
+            progression.Restart();
+            LoadCurrentStage();
+        }
+        public bool AdvanceStageIfCleared()
+        {
+            if (Session == null || Session.Rules.State != MatchState.Victory || !progression.HasNext) return false;
+            progression.TryAdvance();
+            LoadCurrentStage();
+            return true;
+        }
+        bool EnsureProgression()
+        {
+            var errors = StageValidator.Validate(stages, settings.tankRadius);
+            if (errors.Count > 0) { Debug.LogError(string.Join("\n", errors)); return false; }
+            if (progression == null || progression.StageCount != stages.Length)
+                progression = new StageProgression(stages.Length);
+            return true;
+        }
+        void LoadCurrentStage()
         {
             human?.Dispose(); human = null;
             if (Session != null) { Session.gameObject.SetActive(false); Destroy(Session.gameObject); }
-            var errors = StageValidator.Validate(new[] { stage }, settings.tankRadius);
-            if (errors.Count > 0) { Debug.LogError(string.Join("\n", errors)); return; }
+            var stage = CurrentStage;
             gameCamera.orthographic = true;
             gameCamera.orthographicSize = presentation.cameraSize;
             gameCamera.transform.SetPositionAndRotation(presentation.cameraPosition, Quaternion.Euler(presentation.cameraAngles));
             // Keep the complete arena visible for narrow desktop/browser windows too.
             float requiredWidth = stage.size.x / 2 + stage.boundaryThickness;
             gameCamera.orthographicSize = Mathf.Max(presentation.cameraSize, requiredWidth / gameCamera.aspect);
-            var root = new GameObject("Stage 1 Runtime"); root.transform.SetParent(transform, false);
+            var root = new GameObject($"Stage {stage.stageId} Runtime"); root.transform.SetParent(transform, false);
             Session = root.AddComponent<GameSession>(); Session.Initialize(settings, stage.enemySpawns.Length, presentation.projectile);
             PrimitiveFactory.Arena(root.transform, stage, presentation);
             var player = PrimitiveFactory.Tank(Session, stage.playerSpawn, true, presentation, settings.moveSpeed);

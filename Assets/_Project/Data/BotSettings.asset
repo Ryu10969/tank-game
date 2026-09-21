@@ -12,11 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d88439f696c674427a18df263522d7b4, type: 3}
   m_Name: BotSettings
   m_EditorClassIdentifier: TankGame.Gameplay::TankGame.Gameplay.BotSettings
-  reactionTimeSeconds: 0.7
+  reactionTimeSeconds: 0.35
   aimErrorDegrees: 0
   aimToleranceDegrees: 1
-  fireCooldownSeconds: 2
-  moveSpeed: 1.5
+  fireCooldownSeconds: 1.5
+  moveSpeed: 1.8
   ricochetAwareness: 0
-  moveDurationSeconds: 1.2
+  moveDurationSeconds: 2.5
+  minimumRepositionSeconds: 0.6
   arrivalDistance: 0.15

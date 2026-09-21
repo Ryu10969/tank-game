@@ -2,7 +2,7 @@
 
 反射角を読む、木製玩具調の2.5Dトップダウン戦車ゲームです。
 Unity 6000.3.11f1 / URP / 新Input Systemを使用しています。
-現在の成果はPhase 0の途中段階である、Stage 1だけのCore Vertical Sliceです。
+現在の成果はPhase 0の途中段階である、Stage 1〜2のCore Vertical Sliceです。
 
 ## 遊び方
 
@@ -11,8 +11,9 @@ Unity 6000.3.11f1 / URP / 新Input Systemを使用しています。
 - WASD: 画面基準の移動。マウス: 砲塔の照準。
 - 左クリック: 押下ごとに1発。長押しでは連射しません。
 - 自弾は同時3発まで。消滅すると枠が回復します。
-- 壁で2回まで反射し、3回目の壁接触で消滅します。反射後の自弾にも被弾します。
-- 敵全滅でVICTORY、被弾でDEFEAT。RESTARTでStage 1を最初から遊べます。
+- プレイヤー弾・敵弾とも壁で1回だけ反射し、次の壁接触で消滅します。反射後の自弾にも被弾します。
+- Stage 1の敵全滅でStage 2へ進み、Stage 2の敵全滅でVICTORYになります。
+- 被弾でDEFEAT。RESTARTでStage 1を最初から遊べます。
 
 ## 検証・Webビルド
 
@@ -46,5 +47,5 @@ batchmodeの`-executeMethod TankGame.Editor.SliceProjectBuilder.Validate`で実�
 - [ADR-0002: Stage data and core slice](docs/adr/ADR-0002-stage-data-and-core-slice.md)
 - [Asset provenance](docs/ASSET_PROVENANCE.md)
 
-Phase 0全体のStage 1〜10、音声、最終品質アート、第三者プレイテストは未完了です。
+Phase 0全体のStage 3〜10、音声、最終品質アート、第三者プレイテストは未完了です。
 オンライン、課金、セーブ、地雷、強化、複数敵タイプ、モバイル固有操作は今回の対象外です。

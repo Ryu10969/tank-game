@@ -367,7 +367,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4cc760fb70964dbb8020bad94ed11b7, type: 3}
   m_Name:
   m_EditorClassIdentifier: TankGame.Presentation::TankGame.Presentation.SliceBootstrap
-  stage: {fileID: 11400000, guid: 21d99270215ce4973ac0b71f40eb4020, type: 2}
+  stages:
+  - {fileID: 11400000, guid: 21d99270215ce4973ac0b71f40eb4020, type: 2}
+  - {fileID: 11400000, guid: c3abc3b049b7843a7a40419d1bee4eab, type: 2}
   settings: {fileID: 11400000, guid: f6a24c0b6f359445b8371ea79bb13c41, type: 2}
   presentation: {fileID: 11400000, guid: 7645dd09e55a440039b56ed2952f5065, type: 2}
   gameCamera: {fileID: 1555367138}

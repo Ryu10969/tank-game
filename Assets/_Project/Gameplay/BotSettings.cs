@@ -11,6 +11,7 @@ namespace TankGame.Gameplay
         public float moveSpeed = 1.5f;
         public bool ricochetAwareness;
         public float moveDurationSeconds = 1.2f;
+        public float minimumRepositionSeconds = 0.6f;
         public float arrivalDistance = 0.15f;
     }
 }

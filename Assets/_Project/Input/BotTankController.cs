@@ -25,32 +25,52 @@ namespace TankGame.Input
             switch (State)
             {
                 case BotState.Observe:
-                    if (elapsed >= settings.reactionTimeSeconds) Enter(BotState.Move);
+                    if (elapsed >= settings.reactionTimeSeconds)
+                        Enter(observation.ClearShot ? BotState.Aim : BotState.Move);
                     break;
                 case BotState.Move:
                     Vector3 offset = StageDefinition.World(patrol[destination], observation.Position.y) - observation.Position;
                     move = Vector3.ClampMagnitude(offset / Mathf.Max(settings.moveSpeed * observation.DeltaTime, 0.0001f), 1);
-                    if (offset.magnitude <= settings.arrivalDistance || elapsed >= settings.moveDurationSeconds)
-                    {
-                        if (offset.magnitude <= settings.arrivalDistance) destination = (destination + 1) % patrol.Length;
+                    if (observation.ClearShot && elapsed >= settings.minimumRepositionSeconds)
                         Enter(BotState.Aim);
+                    else if (offset.magnitude <= settings.arrivalDistance || elapsed >= settings.moveDurationSeconds)
+                    {
+                        AdvanceDestination();
+                        Enter(BotState.Move);
                     }
                     break;
                 case BotState.Aim:
-                    if (!observation.ClearShot) Enter(BotState.Recover);
+                    if (!observation.ClearShot)
+                    {
+                        AdvanceDestination();
+                        Enter(BotState.Move);
+                    }
                     else if (Vector3.Angle(observation.TurretForward, targetDirection) <= settings.aimToleranceDegrees) Enter(BotState.Fire);
                     break;
                 case BotState.Fire:
                     fire = observation.ClearShot && cooldown <= 0;
-                    if (fire) cooldown = settings.fireCooldownSeconds;
-                    Enter(BotState.Recover);
+                    if (fire)
+                    {
+                        cooldown = settings.fireCooldownSeconds;
+                        Enter(BotState.Recover);
+                    }
+                    else
+                    {
+                        AdvanceDestination();
+                        Enter(BotState.Move);
+                    }
                     break;
                 case BotState.Recover:
-                    if (elapsed >= settings.reactionTimeSeconds && cooldown <= 0) Enter(BotState.Observe);
+                    if (elapsed >= settings.reactionTimeSeconds)
+                    {
+                        AdvanceDestination();
+                        Enter(BotState.Move);
+                    }
                     break;
             }
             return new TankCommand(move, aim, fire);
         }
+        void AdvanceDestination() { destination = (destination + 1) % patrol.Length; }
         void Enter(BotState next) { State = next; elapsed = 0; }
     }
 }

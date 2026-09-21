@@ -1,4 +1,25 @@
-# Core Vertical Slice implementation report
+# Core Vertical Slice implementation history
+
+## Current update: two-stage foundation
+
+Date: 2026-09-22 (JST)
+
+- Stage 1〜2をMain内の順序付きStageDefinition一覧で管理する。
+- Stage 1クリアでStage 2へ一度だけ遷移し、Stage 2クリアで最終Victoryになる。
+- 両陣営のProjectileActorは同じmaximumReflections=1を使い、2回目の壁接触で消滅する。
+- BOTは射線なしと射撃後に巡回へ戻り、射撃間隔中も位置取りを続ける。
+- Stage 2はPlayer (6,-4)、Enemy (-6,4)、中央壁6×2、巡回点
+  (-6,-4), (-4,0), (-6,4) のGraybox。新ギミック・新アートなし。
+- EditMode 20/20、PlayMode 26/26、bootstrap検証、WebGL build（59,538,081 bytes、非圧縮）はすべて成功。
+- Build前検証はMainの`SliceBootstrap.stages`を並べ替えず検証する。誤順序、反射0回境界、
+  Update経由遷移、Stage 2敗北後Restart、実Collider接続のBOT位置取りを追加テストで確認した。
+- ローカルHTTPの最新WebGLでStage 1起動、WASD移動、敵の移動・射撃、Defeat、Restartを確認し、
+  ブラウザconsoleのwarning/errorが0件であることを確認した。
+  Stage 1→2、Stage 2最終Victory、両陣営の2回目壁接触による消滅はPlayModeで自動検証したが、
+  今回のブラウザ手動操作では再現確認していない。
+
+以下は2026-09-21の1 Stageベースライン実装記録であり、反射回数、Stage数、テスト件数は
+上記更新およびCURRENT_STATE、GAMEPLAY_SPEC §10が現在値となる。
 
 Date: 2026-09-21 (JST)
 Branch: `feat/core-vertical-slice`

@@ -2,7 +2,8 @@
   "name": "TankGame.Tests.EditMode",
   "references": [
     "TankGame.Core",
-    "TankGame.Gameplay"
+    "TankGame.Gameplay",
+    "TankGame.Editor"
   ],
   "noEngineReferences": false,
   "includePlatforms": [

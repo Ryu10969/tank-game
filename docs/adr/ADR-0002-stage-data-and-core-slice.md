@@ -1,4 +1,4 @@
-# ADR-0002: Stage data and one-stage milestone
+# ADR-0002: Stage data and incremental milestones
 
 - Status: Accepted for core slice
 - Date: 2026-09-21
@@ -17,3 +17,17 @@ Victory/Defeatで停止しRestartでStage 1を作り直す。次Stageへの進�
 
 CoreはUnity参照なし。Gameplayが物理検出とCore状態を結び、Inputが人間/BOT命令を供給、
 Presentationが構成・モデル・UIを担当する。Editor assemblyがStage検証・シーン保存・Web buildを担当。
+
+## Amendment: two-stage foundation (2026-09-22)
+
+上記のStage 1限定、最大反射2回、Victory停止は2026-09-21時点の中間成果を記録したもの。
+今回の要求で現在のマイルストーンをStage 1〜2へ拡張し、最大反射を両陣営共通で1回へ変更する。
+
+MainのSliceBootstrapはStageDefinitionの順序付き配列を参照する。Stage IDは1始まりで
+配列順と一致し、validatorが欠番、逆順、重複を拒否する。Stageクリア時は同じMain内で
+次の定義からRuntime rootを再生成する。最終StageのみVictoryで停止し、Defeat/Restartは
+Stage 1へ戻る。この方式はScene名やStage番号の分岐を増やさず、StageDefinitionの追加で
+Stage 3以降を拡張できる。
+
+BOTは既存のObserve/Move/Aim/Fire/Recoverと巡回点を維持する。射線なしと射撃後は
+Moveへ戻し、射撃間隔中も巡回して射線を作る。NavMeshや別AI frameworkは導入しない。

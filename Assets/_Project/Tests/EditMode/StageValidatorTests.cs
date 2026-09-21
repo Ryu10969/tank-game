@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using TankGame.Editor;
 using TankGame.Gameplay;
 using UnityEngine;
 namespace TankGame.Tests.EditMode
@@ -13,6 +14,21 @@ namespace TankGame.Tests.EditMode
         [Test] public void WallSpawnIsRejected() { stage.playerSpawn = Vector2.zero; Assert.That(StageValidator.Validate(new[] { stage }, 0.5f), Is.Not.Empty); }
         [Test] public void OutsideSpawnIsRejected() { stage.playerSpawn = new Vector2(20, 0); Assert.That(StageValidator.Validate(new[] { stage }, 0.5f), Is.Not.Empty); }
         [Test] public void DuplicateIdIsRejected() { Assert.That(StageValidator.Validate(new[] { stage, stage }, 0.5f), Does.Contain("Duplicate Stage ID.")); }
+        [Test] public void StageIdsMustMatchListOrder()
+        { stage.stageId = 2; Assert.That(StageValidator.Validate(new[] { stage }, 0.5f), Does.Contain("Stage IDs must be contiguous and match list order.")); }
+        [Test] public void BuildValidationRejectsMainStageOrderWithoutSorting()
+        {
+            var second = ScriptableObject.CreateInstance<StageDefinition>(); second.stageId = 2; second.botSettings = bot;
+            var settings = ScriptableObject.CreateInstance<GameplaySettings>();
+            try
+            {
+                Assert.Throws<System.InvalidOperationException>(() => SliceProjectBuilder.ValidateMainStages(new[] { second, stage }, settings));
+            }
+            finally
+            {
+                Object.DestroyImmediate(second); Object.DestroyImmediate(settings);
+            }
+        }
         [Test] public void RequiredReferenceIsRejected() { stage.botSettings = null; Assert.That(StageValidator.Validate(new[] { stage }, 0.5f), Does.Contain("Missing required Stage reference.")); }
         [Test] public void IsolatedEnemyIsRejected()
         {

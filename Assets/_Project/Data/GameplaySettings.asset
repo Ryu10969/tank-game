@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: GameplaySettings
   m_EditorClassIdentifier: TankGame.Gameplay::TankGame.Gameplay.GameplaySettings
   shotCapacity: 3
-  maximumReflections: 2
+  maximumReflections: 1
   moveSpeed: 4
   bodyTurnSpeed: 540
   turretTurnSpeed: 720

@@ -1,7 +1,7 @@
 # GAMEPLAY_SPEC
 
 Status: Draft for owner review
-Last updated: 2026-09-20
+Last updated: 2026-09-22
 
 ## 1. Coordinate model
 
@@ -145,7 +145,7 @@ Stage validatorは最低限、次を拒否する。
 - プレイヤー撃破時はStage 1へ1回だけ遷移する。
 - Stage 10クリア後に存在しないStage 11を読み込まない。
 
-## 9. Core Vertical Slice milestone (2026-09-21)
+## 9. Core Vertical Slice milestone (2026-09-21, superseded)
 
 ユーザー指定の今回の中間成果はStage 1だけとする。上記Phase 0全体の
 Stage 1〜10進行、音声、最終アートの完成を意味しない。
@@ -200,3 +200,54 @@ Stage 2以降は作成しない。AI生成/外部アセット/画像/音声は�
 7. Mainだけをロードして上記一連の操作ができる。
 8. WASDは画面基準、斜め速度は一定。左クリック保持で連射しない。
 9. Stage validatorが壁内・範囲外・孤立Spawn、重複ID、必須参照不足を拒否する。
+
+この節の「Stage 1のみ」「最大2回反射」「Victoryで停止」は、次節の2 Stage
+マイルストーンで置き換える。その他の操作・衝突・一撃撃破・弾数ルールは維持する。
+
+## 10. Two-stage foundation milestone (2026-09-22)
+
+Mainシーンは順序付きのStageDefinition一覧を参照する。Stage固有のSpawn、壁、
+巡回地点、BOT設定、テーマは各StageDefinitionへ保存し、共通の戦車、弾、壁生成、
+入力、勝敗ルールはStage間で共有する。Stage IDは1から連続し、一覧順と一致させる。
+
+- Stage 1クリア時は同じMain内でStage 2を1回だけ生成する。
+- Stage 2クリア時はVictoryで停止する。存在しないStage 3は読み込まない。
+- プレイヤー撃破時はDefeatで停止し、RestartでStage 1へ戻る。
+- Stage切替とRestartでは、旧Stageの戦車、弾、壁、一時状態を破棄する。
+- UIはAMMO、最終Victory、Defeat、Restartのみを維持する。
+- プレイヤー弾とBOT弾は同じProjectileActorとProjectileRulesを使う。
+- 全砲弾は壁で最大1回だけ反射し、次の反射対象壁との衝突で消滅する。
+- 同時自弾3発、一撃撃破、射手猶予、自爆、弾同士非衝突は維持する。
+
+BOT v0の状態名とController境界は維持する。行動は次のように調整する。
+
+- 射線がなければRecoverで待たず、次の巡回地点へ移動して射線を探す。
+- 射線があればAimとFireへ進む。
+- 射撃後は次の巡回地点へ移動し、射撃間隔中も位置を変える。
+- 移動時間切れ時は次の巡回地点へ切り替え、その場でAimを繰り返さない。
+- 高度なPathfinding、NavMesh、跳弾射撃予測は導入しない。
+
+### 暫定設定
+
+| 設定 | Stage 1 / Stage 2 |
+|---|---|
+| 最大反射回数 | 1（プレイヤー・BOT共通） |
+| BOT反応 / 射撃間隔 / 移動速度 | 0.35秒 / 1.5秒 / 1.8 unit/s |
+| BOT移動時間 / 最短再配置 / 到着距離 / 照準誤差 / 許容角 | 2.5秒 / 0.6秒 / 0.15 / 0度 / 1度 |
+| Stage 1 Spawn (Player / Enemy) | (-6,-3) / (6,3) |
+| Stage 1壁 | 中央 (0,0), 2×4 |
+| Stage 1巡回点 | (6,-3), (6,3) |
+| Stage 2 Spawn (Player / Enemy) | (6,-4) / (-6,4) |
+| Stage 2壁 | 中央 (0,0), 6×2 |
+| Stage 2巡回点 | (-6,-4), (-4,0), (-6,4) |
+
+### 受入条件
+
+1. プレイヤー弾とBOT弾は初回壁衝突で反射し、2回目の壁衝突で消滅する。
+2. 両陣営の有効弾3発の間は4発目を拒否し、消滅すると枠が回復する。
+3. Stage 1とStage 2の定義が同じvalidatorを通り、ID 1, 2の順で登録される。
+4. Stage 1最後の敵を撃破するとStage 2へ1回だけ遷移する。
+5. Stage 2最後の敵を撃破するとVictoryで停止する。
+6. どちらのStageで敗北してもRestartでStage 1と弾数3を再生成する。
+7. BOTは射線がない間も巡回し、射線を得るとAim・Fireし、射撃後も再配置する。
+8. Stage 1の移動、照準、射撃、障害物、撃破、UIを反射回数以外は維持する。

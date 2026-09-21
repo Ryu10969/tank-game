@@ -6,7 +6,7 @@ namespace TankGame.Gameplay
     public sealed class GameplaySettings : ScriptableObject
     {
         [Min(1)] public int shotCapacity = 3;
-        [Min(0)] public int maximumReflections = 2;
+        [Min(0)] public int maximumReflections = 1;
         [Min(0.1f)] public float moveSpeed = 4;
         [Min(1)] public float bodyTurnSpeed = 540;
         [Min(1)] public float turretTurnSpeed = 720;

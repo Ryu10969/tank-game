@@ -8,11 +8,18 @@ namespace TankGame.Gameplay
         public static List<string> Validate(IReadOnlyList<StageDefinition> stages, float tankRadius)
         {
             var errors = new List<string>();
-            var ids = new HashSet<int>();
-            foreach (var stage in stages)
+            if (stages == null || stages.Count == 0)
             {
+                errors.Add("At least one Stage is required.");
+                return errors;
+            }
+            var ids = new HashSet<int>();
+            for (int stageIndex = 0; stageIndex < stages.Count; stageIndex++)
+            {
+                var stage = stages[stageIndex];
                 if (stage == null) { errors.Add("Missing Stage reference."); continue; }
                 if (!ids.Add(stage.stageId)) errors.Add("Duplicate Stage ID.");
+                if (stage.stageId != stageIndex + 1) errors.Add("Stage IDs must be contiguous and match list order.");
                 if (stage.stageId < 1 || stage.size.x < 2 || stage.size.y < 2 || stage.boundaryThickness <= 0)
                     errors.Add("Invalid Stage dimensions or ID.");
                 if (stage.botSettings == null || string.IsNullOrWhiteSpace(stage.themeId)) errors.Add("Missing required Stage reference.");

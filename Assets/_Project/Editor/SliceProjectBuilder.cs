@@ -18,7 +18,16 @@ namespace TankGame.Editor
             Directory.CreateDirectory(Data);
             var settings = Asset<GameplaySettings>("GameplaySettings");
             var bot = Asset<BotSettings>("BotSettings");
-            var stage = Asset<StageDefinition>("Stage1"); stage.botSettings = bot;
+            settings.maximumReflections = 1;
+            bot.reactionTimeSeconds = 0.35f;
+            bot.fireCooldownSeconds = 1.5f;
+            bot.moveSpeed = 1.8f;
+            bot.moveDurationSeconds = 2.5f;
+            bot.minimumRepositionSeconds = 0.6f;
+            var stage1 = Asset<StageDefinition>("Stage1");
+            ConfigureStage1(stage1, bot);
+            var stage2 = Asset<StageDefinition>("Stage2");
+            ConfigureStage2(stage2, bot);
             var art = Asset<PrototypePresentation>("PrototypePresentation");
             art.floor = Material("Floor", new Color(0.57f, 0.39f, 0.22f));
             art.wall = Material("Wall", new Color(0.76f, 0.56f, 0.32f));
@@ -26,19 +35,46 @@ namespace TankGame.Editor
             art.enemy = Material("Enemy", new Color(0.83f, 0.29f, 0.16f));
             art.trim = Material("Trim", new Color(0.22f, 0.16f, 0.12f));
             art.projectile = Material("Projectile", new Color(1, 0.9f, 0.42f));
-            EditorUtility.SetDirty(stage); EditorUtility.SetDirty(art); AssetDatabase.SaveAssets();
-            Validate();
+            EditorUtility.SetDirty(settings); EditorUtility.SetDirty(bot);
+            EditorUtility.SetDirty(stage1); EditorUtility.SetDirty(stage2); EditorUtility.SetDirty(art);
+            AssetDatabase.SaveAssets();
             var scene = EditorSceneManager.OpenScene(Main);
             var bootstrap = UnityEngine.Object.FindFirstObjectByType<SliceBootstrap>();
             if (bootstrap == null) bootstrap = new GameObject("Core Vertical Slice").AddComponent<SliceBootstrap>();
-            bootstrap.stage = stage; bootstrap.settings = settings; bootstrap.presentation = art; bootstrap.gameCamera = Camera.main;
+            bootstrap.stages = new[] { stage1, stage2 };
+            bootstrap.settings = settings; bootstrap.presentation = art; bootstrap.gameCamera = Camera.main;
             if (bootstrap.gameCamera == null) throw new InvalidOperationException("Main camera is required.");
             bootstrap.gameCamera.orthographic = true; bootstrap.gameCamera.orthographicSize = art.cameraSize;
             bootstrap.gameCamera.transform.SetPositionAndRotation(art.cameraPosition, Quaternion.Euler(art.cameraAngles));
             EditorUtility.SetDirty(bootstrap);
             EditorSceneManager.SaveScene(scene);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(Main, true) };
-            Debug.Log("Core slice prepared: Main only; Stage validation PASS.");
+            Validate();
+            Debug.Log("Core slice prepared: Main only; Stage 1-2 validation PASS.");
+        }
+        static void ConfigureStage1(StageDefinition stage, BotSettings bot)
+        {
+            stage.stageId = 1;
+            stage.size = new Vector2(20, 14);
+            stage.playerSpawn = new Vector2(-6, -3);
+            stage.enemySpawns = new[] { new Vector2(6, 3) };
+            stage.walls = new[] { new StageWall(Vector2.zero, new Vector2(2, 4)) };
+            stage.botSettings = bot;
+            stage.themeId = "wood-prototype";
+            stage.patrolPoints = new[] { new Vector2(6, -3), new Vector2(6, 3) };
+            stage.boundaryThickness = 1;
+        }
+        static void ConfigureStage2(StageDefinition stage, BotSettings bot)
+        {
+            stage.stageId = 2;
+            stage.size = new Vector2(20, 14);
+            stage.playerSpawn = new Vector2(6, -4);
+            stage.enemySpawns = new[] { new Vector2(-6, 4) };
+            stage.walls = new[] { new StageWall(Vector2.zero, new Vector2(6, 2)) };
+            stage.botSettings = bot;
+            stage.themeId = "wood-prototype";
+            stage.patrolPoints = new[] { new Vector2(-6, -4), new Vector2(-4, 0), new Vector2(-6, 4) };
+            stage.boundaryThickness = 1;
         }
         static T Asset<T>(string name) where T : ScriptableObject
         {
@@ -61,11 +97,14 @@ namespace TankGame.Editor
         [MenuItem("Tank Game/Validate Stages")]
         public static void Validate()
         {
-            var settings = AssetDatabase.LoadAssetAtPath<GameplaySettings>($"{Data}/GameplaySettings.asset");
-            var ids = AssetDatabase.FindAssets("t:StageDefinition");
-            var stages = new StageDefinition[ids.Length];
-            for (int i = 0; i < ids.Length; i++) stages[i] = AssetDatabase.LoadAssetAtPath<StageDefinition>(AssetDatabase.GUIDToAssetPath(ids[i]));
-            if (settings == null || stages.Length == 0) throw new InvalidOperationException("Missing slice data.");
+            EditorSceneManager.OpenScene(Main);
+            var bootstrap = UnityEngine.Object.FindFirstObjectByType<SliceBootstrap>();
+            if (bootstrap == null) throw new InvalidOperationException("Main is missing SliceBootstrap.");
+            ValidateMainStages(bootstrap.stages, bootstrap.settings);
+        }
+        public static void ValidateMainStages(StageDefinition[] stages, GameplaySettings settings)
+        {
+            if (settings == null) throw new InvalidOperationException("Main is missing GameplaySettings.");
             var errors = StageValidator.Validate(stages, settings.tankRadius);
             if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
         }

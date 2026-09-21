@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 Status: Draft for owner review
-Last updated: 2026-09-20
+Last updated: 2026-09-22
 
 ## 1. Baseline
 
@@ -118,3 +118,14 @@ WebGLでオンライン対応するPhaseでは、Photon公式がWebGLにShared M
 
 ADR-0002とGAMEPLAY_SPEC §9に従い、Stage 1のVictory/Defeat→Restartのみを実装する。
 Stage定義はScriptableObject。EditorコードはTankGame.Editorへ分離する。
+
+## Two-stage foundation
+
+GAMEPLAY_SPEC §10に従い、Main上のSliceBootstrapが順序付きStageDefinition一覧を持つ。
+Stage IDと一覧indexの対応はStageValidatorが検証する。Stage切替はシーンを追加ロードせず、
+現在のRuntime rootを破棄して次のStageDefinitionから共通Factoryで再生成する。
+Stage 3以降はStageDefinitionを追加して一覧へID順に登録する。
+
+Stage進行のindex管理はCoreのStageProgressionへ分離する。PresentationはGameSessionの
+終端状態を監視し、次StageがあるVictoryだけを1回受理する。最終StageのVictoryとDefeatは
+停止し、RestartはStage 1へ戻す。Player/BOTの砲弾は同じGameplay実装を共有する。
