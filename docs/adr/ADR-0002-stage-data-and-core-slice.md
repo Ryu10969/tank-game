@@ -31,3 +31,12 @@ Stage 3以降を拡張できる。
 
 BOTは既存のObserve/Move/Aim/Fire/Recoverと巡回点を維持する。射線なしと射撃後は
 Moveへ戻し、射撃間隔中も巡回して射線を作る。NavMeshや別AI frameworkは導入しない。
+
+## Amendment: combat interactions and Stage gimmicks (2026-09-22)
+
+StageDefinitionのEnemy Spawn一覧をStageEnemy一覧へ置き換え、Enemyごとの巡回点、BotSettings、
+Mobile/Sentry Behaviorをデータ化する。GameSessionは一覧数をMatchRulesへ渡すため、全Enemy撃破の
+既存Coreルールを維持する。Destructible WallとMineもStageDefinitionの配置データとし、Runtime rootへ生成する。
+
+Projectile clashはUnity collision callbackへ依存せず既存SphereCastの衝突分類へ統合する。
+Projectileの`IsAlive`をterminal guard、既存Despawnを発射枠返却の唯一経路として維持する。

@@ -251,3 +251,27 @@ BOT v0の状態名とController境界は維持する。行動は次のように�
 6. どちらのStageで敗北してもRestartでStage 1と弾数3を再生成する。
 7. BOTは射線がない間も巡回し、射線を得るとAim・Fireし、射撃後も再配置する。
 8. Stage 1の移動、照準、射撃、障害物、撃破、UIを反射回数以外は維持する。
+
+## 11. Combat interactions and Stage gimmicks milestone (2026-09-22)
+
+- Projectile同士は射手・陣営・反射済みかを問わず接触時に双方消滅する。双方の発射枠は既存のDespawn経路で1回だけ回復する。
+- 同距離の複数候補はProjectile、Destructible Wall、Tank、Normal Wallの順で分類し、terminal後のProjectileは追加処理しない。
+- 上部の数値AMMO表示を廃止し、Player Tank直下へ既存ShotSlotsを読む3-slot表示を置く。`●`は利用可能、`○`はfield上の自弾。Enemyには表示しない。
+- StageDefinitionはEnemyごとにSpawn、巡回点、BotSettings、Behaviorを保持する。全Enemy撃破時だけStage clearになる。
+- 既存Mobileに加えSentryを1種類追加する。Sentryは移動せず、直射LOSがある場合に既存反応時間・照準・射撃間隔・3発上限で射撃する。
+- Destructible WallはTankとLOSを遮り、Projectile 1 hitで壁とProjectileが消滅する。反射回数は増えない。破壊後はTank、Projectile、LOSが通過できる。
+- MineはStage配置型の中立hazard。Tankが範囲へ入ると既存`TankActor.Hit()`を1回だけ呼んで消滅する。Projectileでは起爆しない。
+- Enemy、Projectile、Ammo Indicator、Destructible Wall、MineはStage Runtime rootとともにStage遷移・Restartで破棄する。
+
+### Stage 2追加配置
+
+| 要素 | 設定 (X,Z) |
+|---|---|
+| Player | (6,-4) |
+| Mobile Enemy | Spawn (-6,4)、巡回 (-6,-4), (-4,0), (-6,4) |
+| Sentry Enemy | Spawn (6,4) |
+| Normal Wall | 中央 (0,0)、6×2 |
+| Destructible Wall | 中央 (4,0)、1×2 |
+| Mine | (2,-4)、1個 |
+
+Stage 1の配置、Enemy数、Behavior、通常壁は変更しない。Stage 3以降、新武器、Projectile起爆Mine、HP 2以上の壁は対象外。

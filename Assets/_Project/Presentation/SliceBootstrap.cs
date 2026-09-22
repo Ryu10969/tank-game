@@ -1,3 +1,4 @@
+using System;
 using TankGame.Core;
 using TankGame.Gameplay;
 using TankGame.Input;
@@ -50,17 +51,29 @@ namespace TankGame.Presentation
             float requiredWidth = stage.size.x / 2 + stage.boundaryThickness;
             gameCamera.orthographicSize = Mathf.Max(presentation.cameraSize, requiredWidth / gameCamera.aspect);
             var root = new GameObject($"Stage {stage.stageId} Runtime"); root.transform.SetParent(transform, false);
-            Session = root.AddComponent<GameSession>(); Session.Initialize(settings, stage.enemySpawns.Length, presentation.projectile);
+            Session = root.AddComponent<GameSession>(); Session.Initialize(settings, stage.enemies.Length, presentation.projectile);
             PrimitiveFactory.Arena(root.transform, stage, presentation);
+            foreach (var wall in stage.destructibleWalls) PrimitiveFactory.DestructibleWall(Session, wall, presentation);
+            foreach (var mine in stage.mines) PrimitiveFactory.Mine(Session, mine, presentation);
             var player = PrimitiveFactory.Tank(Session, stage.playerSpawn, true, presentation, settings.moveSpeed);
+            var indicator = player.gameObject.AddComponent<AmmoIndicator>(); indicator.Initialize(player, gameCamera);
             human = new HumanTankController(gameCamera, settings.planeHeight, Vector3.forward);
             player.Controller = human;
-            foreach (var spawn in stage.enemySpawns)
+            foreach (var enemy in stage.enemies)
             {
-                var bot = PrimitiveFactory.Tank(Session, spawn, false, presentation, stage.botSettings.moveSpeed);
-                bot.Controller = new BotTankController(stage.botSettings, stage.patrolPoints);
+                var bot = PrimitiveFactory.Tank(Session, enemy.spawn, false, presentation, enemy.botSettings.moveSpeed);
+                bot.Controller = CreateEnemyController(enemy);
             }
             Physics.SyncTransforms();
+        }
+        public static ITankController CreateEnemyController(StageEnemy enemy)
+        {
+            switch (enemy.behavior)
+            {
+                case EnemyBehavior.Mobile: return new BotTankController(enemy.botSettings, enemy.patrolPoints);
+                case EnemyBehavior.Sentry: return new SentryTankController(enemy.botSettings);
+                default: throw new ArgumentOutOfRangeException(nameof(enemy.behavior), enemy.behavior, "Undefined Enemy Behavior.");
+            }
         }
         void OnDestroy() { human?.Dispose(); }
         void OnGUI()
@@ -68,7 +81,6 @@ namespace TankGame.Presentation
             if (Session == null) return;
             float scale = Mathf.Max(1, Screen.height / 720f);
             GUI.matrix = Matrix4x4.Scale(Vector3.one * scale);
-            GUI.Label(new Rect(20, 18, 200, 32), $"AMMO  {Session.Player.Slots.Available} / {settings.shotCapacity}", new GUIStyle(GUI.skin.label) { fontSize = 24 });
             if (Session.Rules.State == MatchState.Playing) return;
             float x = Screen.width / scale / 2 - 120;
             float y = Screen.height / scale / 2 - 60;
