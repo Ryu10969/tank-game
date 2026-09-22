@@ -4,7 +4,7 @@ namespace TankGame.Presentation
     [CreateAssetMenu(menuName = "Tank Game/Prototype Presentation")]
     public sealed class PrototypePresentation : ScriptableObject
     {
-        public Material floor, wall, player, enemy, trim, projectile;
+        public Material floor, wall, destructibleWall, mine, player, enemy, trim, projectile;
         public float wallHeight = 1.5f;
         public float floorThickness = 0.3f;
         public float cameraSize = 10.5f;

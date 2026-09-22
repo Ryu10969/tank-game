@@ -1,5 +1,19 @@
 # Core Vertical Slice implementation history
 
+## Current update: combat interactions and Stage gimmicks
+
+Date: 2026-09-22 (JST)
+
+- Projectile clash、Player追従3-slot Ammo Indicator、複数Enemy、Sentry、Destructible Wall、Mineを既存Runtime rootへ統合。
+- Stage 1配置は維持。Stage 2はMobile (-6,4)、Sentry (6,4)、破壊壁 (4,0; 1×2)、Mine (2,-4)。
+- Projectile/Tank/Wallの判定はcallbackではなく、静的対象へのSphereCast TOIとProjectile相対運動のcontinuous TOIを比較し、terminal guard付きで発生順に処理する。
+- production tickは全Projectileの全actual static hitとProjectile clashを1つのglobal候補集合へ入れ、絶対最小TOIからepsilon集合を固定する。その集合内をProjectile、Destructible Wall、Tank、Normal Wallのpriorityとruntime identityの安定キーで決定し、local winnerの時刻とpriorityは混在させない。muzzle query直前にもTransformをPhysicsへ同期する。
+- swept-sphere discriminantはdouble中間値と係数scale比例の許容差を使い、極小負値だけを0へ丸める。
+- MineはTankのtick開始位置から移動後位置までの線分とtrigger円を判定し、高deltaでも横断を検出する。未知EnemyBehaviorはvalidatorとruntime controller生成の双方で拒否する。
+- EditMode 21/21、PlayMode 100/100（epsilon chain全6列挙順、global production順序、境界値を含む）、bootstrap、WebGL build（59,679,667 bytes、非圧縮）はすべて成功。
+- ローカルWebGLでStage 1、Player直下の3-slot、射撃時のfilled→outline、上部数値AMMO非表示を確認し、
+  ブラウザconsole warning/errorは0件。Stage 2複合interactionはPlayModeで自動検証した。
+
 ## Current update: two-stage foundation
 
 Date: 2026-09-22 (JST)

@@ -43,6 +43,19 @@ namespace TankGame.Presentation
             Wall(parent, new Vector2(0, -stage.size.y / 2 - t / 2), new Vector2(stage.size.x, t), art);
             Wall(parent, new Vector2(0, stage.size.y / 2 + t / 2), new Vector2(stage.size.x, t), art);
         }
+        public static DestructibleWallActor DestructibleWall(GameSession session, StageWall wall, PrototypePresentation art)
+        {
+            var go = Shape("Destructible wall", PrimitiveType.Cube, session.transform,
+                StageDefinition.World(wall.center, art.wallHeight / 2), new Vector3(wall.size.x, art.wallHeight, wall.size.y), art.destructibleWall, true);
+            var actor = go.AddComponent<DestructibleWallActor>(); session.Register(actor); return actor;
+        }
+        public static MineActor Mine(GameSession session, Vector2 position, PrototypePresentation art)
+        {
+            const float radius = 0.55f;
+            var go = Shape("Mine", PrimitiveType.Cylinder, session.transform,
+                StageDefinition.World(position, 0.08f), new Vector3(0.8f, 0.08f, 0.8f), art.mine);
+            var actor = go.AddComponent<MineActor>(); actor.Initialize(session.Settings.tankRadius + radius); session.Register(actor); return actor;
+        }
         static void Wall(Transform parent, Vector2 center, Vector2 size, PrototypePresentation art)
         { Shape("Wood wall", PrimitiveType.Cube, parent, StageDefinition.World(center, art.wallHeight / 2), new Vector3(size.x, art.wallHeight, size.y), art.wall, true); }
     }

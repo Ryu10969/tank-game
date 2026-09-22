@@ -31,6 +31,8 @@ namespace TankGame.Editor
             var art = Asset<PrototypePresentation>("PrototypePresentation");
             art.floor = Material("Floor", new Color(0.57f, 0.39f, 0.22f));
             art.wall = Material("Wall", new Color(0.76f, 0.56f, 0.32f));
+            art.destructibleWall = Material("DestructibleWall", new Color(0.86f, 0.68f, 0.38f));
+            art.mine = Material("Mine", new Color(0.85f, 0.72f, 0.12f));
             art.player = Material("Player", new Color(0.22f, 0.65f, 0.64f));
             art.enemy = Material("Enemy", new Color(0.83f, 0.29f, 0.16f));
             art.trim = Material("Trim", new Color(0.22f, 0.16f, 0.12f));
@@ -57,11 +59,11 @@ namespace TankGame.Editor
             stage.stageId = 1;
             stage.size = new Vector2(20, 14);
             stage.playerSpawn = new Vector2(-6, -3);
-            stage.enemySpawns = new[] { new Vector2(6, 3) };
+            stage.enemies = new[] { new StageEnemy(new Vector2(6, 3), new[] { new Vector2(6, -3), new Vector2(6, 3) }, bot, EnemyBehavior.Mobile) };
             stage.walls = new[] { new StageWall(Vector2.zero, new Vector2(2, 4)) };
-            stage.botSettings = bot;
+            stage.destructibleWalls = Array.Empty<StageWall>();
+            stage.mines = Array.Empty<Vector2>();
             stage.themeId = "wood-prototype";
-            stage.patrolPoints = new[] { new Vector2(6, -3), new Vector2(6, 3) };
             stage.boundaryThickness = 1;
         }
         static void ConfigureStage2(StageDefinition stage, BotSettings bot)
@@ -69,11 +71,15 @@ namespace TankGame.Editor
             stage.stageId = 2;
             stage.size = new Vector2(20, 14);
             stage.playerSpawn = new Vector2(6, -4);
-            stage.enemySpawns = new[] { new Vector2(-6, 4) };
+            stage.enemies = new[]
+            {
+                new StageEnemy(new Vector2(-6, 4), new[] { new Vector2(-6, -4), new Vector2(-4, 0), new Vector2(-6, 4) }, bot, EnemyBehavior.Mobile),
+                new StageEnemy(new Vector2(6, 4), Array.Empty<Vector2>(), bot, EnemyBehavior.Sentry)
+            };
             stage.walls = new[] { new StageWall(Vector2.zero, new Vector2(6, 2)) };
-            stage.botSettings = bot;
+            stage.destructibleWalls = new[] { new StageWall(new Vector2(4, 0), new Vector2(1, 2)) };
+            stage.mines = new[] { new Vector2(2, -4) };
             stage.themeId = "wood-prototype";
-            stage.patrolPoints = new[] { new Vector2(-6, -4), new Vector2(-4, 0), new Vector2(-6, 4) };
             stage.boundaryThickness = 1;
         }
         static T Asset<T>(string name) where T : ScriptableObject

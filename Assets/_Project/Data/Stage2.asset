@@ -15,15 +15,25 @@ MonoBehaviour:
   stageId: 2
   size: {x: 20, y: 14}
   playerSpawn: {x: 6, y: -4}
-  enemySpawns:
-  - {x: -6, y: 4}
+  enemies:
+  - spawn: {x: -6, y: 4}
+    patrolPoints:
+    - {x: -6, y: -4}
+    - {x: -4, y: 0}
+    - {x: -6, y: 4}
+    botSettings: {fileID: 11400000, guid: 465a7d5942db6497fa2c68a7468593bf, type: 2}
+    behavior: 0
+  - spawn: {x: 6, y: 4}
+    patrolPoints: []
+    botSettings: {fileID: 11400000, guid: 465a7d5942db6497fa2c68a7468593bf, type: 2}
+    behavior: 1
   walls:
   - center: {x: 0, y: 0}
     size: {x: 6, y: 2}
-  botSettings: {fileID: 11400000, guid: 465a7d5942db6497fa2c68a7468593bf, type: 2}
+  destructibleWalls:
+  - center: {x: 4, y: 0}
+    size: {x: 1, y: 2}
+  mines:
+  - {x: 2, y: -4}
   themeId: wood-prototype
-  patrolPoints:
-  - {x: -6, y: -4}
-  - {x: -4, y: 0}
-  - {x: -6, y: 4}
   boundaryThickness: 1

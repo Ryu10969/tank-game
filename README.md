@@ -11,8 +11,11 @@ Unity 6000.3.11f1 / URP / 新Input Systemを使用しています。
 - WASD: 画面基準の移動。マウス: 砲塔の照準。
 - 左クリック: 押下ごとに1発。長押しでは連射しません。
 - 自弾は同時3発まで。消滅すると枠が回復します。
+- 残弾はPlayer Tank直下の3-slot（`●`利用可能 / `○`field上）で表示します。
 - プレイヤー弾・敵弾とも壁で1回だけ反射し、次の壁接触で消滅します。反射後の自弾にも被弾します。
+- Projectile同士は陣営を問わず接触時に相殺します。
 - Stage 1の敵全滅でStage 2へ進み、Stage 2の敵全滅でVICTORYになります。
+- Stage 2にはMobile Enemy、固定Sentry、破壊可能壁、Tank接触で発動するMineがあります。
 - 被弾でDEFEAT。RESTARTでStage 1を最初から遊べます。
 
 ## 検証・Webビルド
@@ -48,4 +51,4 @@ batchmodeの`-executeMethod TankGame.Editor.SliceProjectBuilder.Validate`で実�
 - [Asset provenance](docs/ASSET_PROVENANCE.md)
 
 Phase 0全体のStage 3〜10、音声、最終品質アート、第三者プレイテストは未完了です。
-オンライン、課金、セーブ、地雷、強化、複数敵タイプ、モバイル固有操作は今回の対象外です。
+オンライン、課金、セーブ、強化、追加Enemyタイプ、モバイル固有操作は今回の対象外です。

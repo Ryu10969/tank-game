@@ -5,7 +5,7 @@ Created: 2026-09-21
 | Asset | Author/source | Conditions |
 |---|---|---|
 | Runtime floor, walls, tanks, projectiles | Project-authored `PrimitiveFactory.cs` / `GameSession.cs`; Unity standard Cube, Cylinder, Sphere | Generated locally at runtime; no downloads, source images, prompts, textures or imported models |
-| `Assets/_Project/Data/{Floor,Wall,Player,Enemy,Trim,Projectile}.mat` | Project-authored `SliceProjectBuilder.cs` | Six flat colors, URP Lit, smoothness 0.05; editable serialized materials |
+| `Assets/_Project/Data/{Floor,Wall,DestructibleWall,Mine,Player,Enemy,Trim,Projectile}.mat` | Project-authored `SliceProjectBuilder.cs`; generated locally in this repository | Eight flat colors, URP Lit, smoothness 0.05; editable serialized materials; no external source, download, texture, prompt, or separate third-party license |
 | `Assets/_Project/Data/*.asset` | Project-authored ScriptableObjects | Stage layout, gameplay and prototype presentation settings |
 | Existing `Assets/Settings/*`, URP shaders and default GUI font | Existing Unity Universal 3D template / installed Unity packages | Retained bootstrap content; Unity-provided components under their existing Unity/package terms, not separately relicensed by this repository |
 
