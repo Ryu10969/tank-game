@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TankGame.Core;
 using UnityEngine;
@@ -12,6 +13,8 @@ namespace TankGame.Gameplay
         public IReadOnlyList<ProjectileActor> Projectiles => projectiles;
         public IReadOnlyList<DestructibleWallActor> DestructibleWalls => destructibleWalls;
         public IReadOnlyList<MineActor> Mines => mines;
+        public int MinesRemaining { get; private set; }
+        public bool GameplayEnabled { get; private set; }
         public bool AutoTick { get; set; } = true;
         readonly List<TankActor> tanks = new List<TankActor>();
         readonly List<ProjectileActor> projectiles = new List<ProjectileActor>();
@@ -34,8 +37,17 @@ namespace TankGame.Gameplay
             public ulong StableKey;
         }
         Material projectileMaterial;
-        public void Initialize(GameplaySettings settings, int enemyCount, Material material)
-        { Settings = settings; Rules = new MatchRules(enemyCount); projectileMaterial = material; }
+        Material mineMaterial;
+        Action<Vector3, float> mineExplosionVfx;
+        public void Initialize(GameplaySettings settings, int enemyCount, Material projectile, Material mine,
+            Action<Vector3, float> spawnMineExplosionVfx = null)
+        {
+            Settings = settings; Rules = new MatchRules(enemyCount);
+            projectileMaterial = projectile; mineMaterial = mine; mineExplosionVfx = spawnMineExplosionVfx;
+            MinesRemaining = settings.mineCapacity;
+        }
+        public void SetGameplayEnabled(bool enabled)
+        { GameplayEnabled = enabled && Rules != null && Rules.State == MatchState.Playing; }
         public void Register(TankActor tank) { tanks.Add(tank); if (tank.IsPlayer) Player = tank; }
         public ProjectileActor SpawnProjectile(TankActor owner, Vector3 direction)
         {
@@ -53,21 +65,67 @@ namespace TankGame.Gameplay
             return projectile;
         }
         public void Register(DestructibleWallActor wall) { destructibleWalls.Add(wall); }
-        public void Register(MineActor mine) { mines.Add(mine); }
+        public void CleanupMines()
+        {
+            foreach (var mine in mines)
+                if (mine != null) mine.Cleanup();
+            mines.Clear();
+        }
+        public bool TryPlaceMine(TankActor owner)
+        {
+            if (!GameplayEnabled || Rules.State != MatchState.Playing || owner == null || owner != Player ||
+                !owner.Life.IsAlive || MinesRemaining <= 0) return false;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.name = "Mine"; go.transform.SetParent(transform);
+            go.transform.position = new Vector3(owner.transform.position.x, 0.08f, owner.transform.position.z);
+            go.transform.localScale = new Vector3(0.8f, 0.08f, 0.8f);
+            var collider = go.GetComponent<Collider>(); collider.enabled = false; Destroy(collider);
+            go.GetComponent<Renderer>().sharedMaterial = mineMaterial;
+            var mine = go.AddComponent<MineActor>();
+            mine.Initialize(this, Settings.mineFuseSeconds, Settings.mineBlastRadius);
+            mines.Add(mine); MinesRemaining--;
+            return true;
+        }
+        internal void ReportTankDestroyed(TankActor tank)
+        {
+            Rules.TankDestroyed(tank.IsPlayer);
+            if (Rules.State != MatchState.Playing) StopControllers();
+        }
+        internal void ApplyMineExplosion(Vector3 center, float radius)
+        {
+            if (!GameplayEnabled || Rules.State != MatchState.Playing) return;
+            bool playerDestroyed = false;
+            int enemiesDestroyed = 0;
+            var damaged = new HashSet<TankActor>();
+            foreach (var tank in tanks)
+            {
+                if (tank == null || !tank.Life.IsAlive || !damaged.Add(tank)) continue;
+                Vector3 offset = tank.transform.position - center; offset.y = 0;
+                if (offset.sqrMagnitude > radius * radius || !tank.ApplyDamage()) continue;
+                if (tank.IsPlayer) playerDestroyed = true; else enemiesDestroyed++;
+            }
+            Rules.TanksDestroyed(playerDestroyed, enemiesDestroyed);
+            if (Rules.State != MatchState.Playing) StopControllers();
+        }
+        internal void SpawnMineExplosionVfx(Vector3 center, float radius)
+        { mineExplosionVfx?.Invoke(center, radius); }
+        void StopControllers()
+        {
+            foreach (var tank in tanks)
+                if (tank != null && tank.Controller is IStoppableTankController stoppable) stoppable.Stop();
+        }
         void Update() { if (AutoTick) Tick(Time.deltaTime); }
         public void Tick(float deltaTime)
         {
-            if (Rules == null || Rules.State != MatchState.Playing) return;
+            if (!GameplayEnabled || Rules == null || Rules.State != MatchState.Playing) return;
             foreach (var tank in tanks)
             {
                 if (Rules.State != MatchState.Playing) break;
-                Vector3 start = tank.transform.position;
                 tank.Tick(deltaTime);
                 Physics.SyncTransforms();
-                foreach (var mine in mines)
-                    if (mine != null && mine.IsArmed && mine.TryTrigger(tank, start, tank.transform.position)) break;
-                if (Rules.State != MatchState.Playing) break;
             }
+            for (int i = 0; i < mines.Count && Rules.State == MatchState.Playing; i++)
+                if (mines[i] != null && mines[i].IsArmed) mines[i].Tick(deltaTime);
             if (Rules.State == MatchState.Playing) SimulateProjectiles(deltaTime);
             projectiles.RemoveAll(p => p == null || !p.IsAlive);
             destructibleWalls.RemoveAll(w => w == null || !w.IsAlive);
@@ -133,10 +191,9 @@ namespace TankGame.Gameplay
             {
                 var projectile = step.Projectile;
                 if (!projectile.IsAlive || step.RemainingTime <= CollisionQueries.TimeEpsilon) continue;
-                var ignore = projectile.Rules.Reflections == 0 ? projectile.Shooter : null;
                 float distance = projectile.Speed * step.RemainingTime;
                 CollisionQueries.CollectStaticHits(projectile.transform.position, projectile.Radius,
-                    projectile.Direction, distance, ignore, staticHits);
+                    projectile.Direction, distance, projectile.Owner, staticHits);
                 foreach (var hit in staticHits)
                 {
                     float time = hit.distance / projectile.Speed;

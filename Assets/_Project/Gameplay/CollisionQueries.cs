@@ -36,7 +36,7 @@ namespace TankGame.Gameplay
             results.Clear();
             foreach (var hit in Physics.SphereCastAll(origin, radius, direction, distance, Mask, QueryTriggerInteraction.Ignore))
             {
-                if (ignore != null && hit.collider.GetComponent<TankActor>() == ignore) continue;
+                if (ignore != null && TankFromCollider(hit.collider) == ignore) continue;
                 results.Add(hit);
             }
         }
@@ -54,7 +54,7 @@ namespace TankGame.Gameplay
                 var hit = hits[i];
                 var projectile = hit.collider.GetComponent<ProjectileActor>();
                 if ((ignoreProjectile != null && projectile == ignoreProjectile) || (projectile != null && !projectile.IsAlive)) continue;
-                if (ignoreTank != null && hit.collider.GetComponent<TankActor>() == ignoreTank) continue;
+                if (ignoreTank != null && TankFromCollider(hit.collider) == ignoreTank) continue;
                 candidates.Add(new SelectionCandidate(hit.distance, HitPriority(hit.collider), StableKey(hit.collider), i));
             }
             int selected = SelectCandidateIndex(candidates, comparisonEpsilon);
@@ -68,9 +68,11 @@ namespace TankGame.Gameplay
         {
             if (collider.GetComponent<ProjectileActor>() != null) return ProjectilePriority;
             if (collider.GetComponent<DestructibleWallActor>() != null) return DestructibleWallPriority;
-            if (collider.GetComponent<TankActor>() != null) return TankPriority;
+            if (TankFromCollider(collider) != null) return TankPriority;
             return NormalWallPriority;
         }
+        internal static TankActor TankFromCollider(Collider collider)
+        { return collider == null ? null : collider.GetComponentInParent<TankActor>(); }
         internal static int SelectCandidateIndex(IReadOnlyList<SelectionCandidate> candidates, float epsilon = TimeEpsilon)
         {
             if (candidates == null || candidates.Count == 0) return -1;

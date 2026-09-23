@@ -21,12 +21,14 @@ namespace TankGame.Tests.PlayMode
         {
             yield return SceneManager.LoadSceneAsync("Main");
             yield return null;
-            bootstrap = Object.FindFirstObjectByType<SliceBootstrap>(); session = bootstrap.Session; session.AutoTick = false;
+            bootstrap = Object.FindFirstObjectByType<SliceBootstrap>();
+            bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
+            session = bootstrap.Session; session.AutoTick = false;
             foreach (var tank in session.Tanks) tank.Controller = null;
         }
         [Test] public void MainHasValidReferencesAndStageOne()
         {
-            Assert.That(bootstrap.stages.Length, Is.EqualTo(2));
+            Assert.That(bootstrap.stages.Length, Is.EqualTo(3));
             Assert.That(bootstrap.CurrentStageId, Is.EqualTo(1)); Assert.That(session.Tanks.Count, Is.GreaterThanOrEqualTo(2));
             foreach (var component in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
                 foreach (var attached in component.GetComponents<Component>()) Assert.That(attached, Is.Not.Null, component.name);
@@ -138,6 +140,16 @@ namespace TankGame.Tests.PlayMode
         void LoadStageTwo()
         {
             Enemy.Hit(); Assert.That(bootstrap.AdvanceStageIfCleared(), Is.True);
+            bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
+            session = bootstrap.Session; session.AutoTick = false;
+            foreach (var tank in session.Tanks) tank.Controller = null;
+            Physics.SyncTransforms();
+        }
+        void LoadStageThree()
+        {
+            LoadStageTwo();
+            Enemy.Hit(); SecondEnemy.Hit(); Assert.That(bootstrap.AdvanceStageIfCleared(), Is.True);
+            bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
             session = bootstrap.Session; session.AutoTick = false;
             foreach (var tank in session.Tanks) tank.Controller = null;
             Physics.SyncTransforms();
@@ -190,9 +202,7 @@ namespace TankGame.Tests.PlayMode
         }
         [UnityTest] public IEnumerator StageTwoDefeatRestartReturnsCleanStageOne()
         {
-            Enemy.Hit(); bootstrap.AdvanceStageIfCleared();
-            session = bootstrap.Session; session.AutoTick = false;
-            foreach (var tank in session.Tanks) tank.Controller = null;
+            LoadStageTwo();
             var oldSession = session; var oldPlayer = Player; var oldEnemy = Enemy;
             Assert.That(Player.TryFire(), Is.True); var oldProjectile = session.Projectiles[0];
             Assert.That(Player.Slots.Available, Is.EqualTo(2)); Assert.That(session.Projectiles.Count, Is.EqualTo(1));
@@ -225,29 +235,33 @@ namespace TankGame.Tests.PlayMode
         }
         [UnityTest] public IEnumerator FinalStageVictoryDoesNotLoadMissingStage()
         {
-            Enemy.Hit(); bootstrap.AdvanceStageIfCleared();
-            session = bootstrap.Session; session.AutoTick = false;
-            foreach (var tank in session.Tanks) tank.Controller = null;
-            Enemy.Hit(); SecondEnemy.Hit(); yield return null;
-            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2));
+            LoadStageThree();
+            Enemy.Hit(); Enemy.Hit(); SecondEnemy.Hit(); yield return null;
+            bootstrap.TickPresentation(bootstrap.settings.stageClearSeconds);
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(3));
             Assert.That(session.Rules.State, Is.EqualTo(MatchState.Victory));
+            Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.FinalVictory));
+            Assert.That(session.TryPlaceMine(Player), Is.False);
             Assert.That(bootstrap.AdvanceStageIfCleared(), Is.False);
         }
-        [UnityTest] public IEnumerator UpdateAutomaticallyAdvancesAndStopsAtFinalVictory()
+        [Test] public void PresentationProgressesStageOneToTwoToThreeAndStopsAtFinalVictory()
         {
-            var stageOneSession = session;
             Enemy.Hit();
-            yield return null; yield return null;
+            bootstrap.TickPresentation(bootstrap.settings.stageClearSeconds);
+            bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
             session = bootstrap.Session; session.AutoTick = false;
             foreach (var tank in session.Tanks) tank.Controller = null;
-            Assert.That(stageOneSession == null, Is.True);
             Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2));
-            var finalSession = session;
-            Enemy.Hit(); SecondEnemy.Hit();
-            yield return null; yield return null;
-            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2));
-            Assert.That(bootstrap.Session, Is.SameAs(finalSession));
-            Assert.That(finalSession.Rules.State, Is.EqualTo(MatchState.Victory));
+            Enemy.Hit(); Enemy.Hit(); SecondEnemy.Hit();
+            bootstrap.TickPresentation(bootstrap.settings.stageClearSeconds);
+            bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
+            session = bootstrap.Session; session.AutoTick = false;
+            foreach (var tank in session.Tanks) tank.Controller = null;
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(3));
+            Enemy.Hit(); Enemy.Hit(); SecondEnemy.Hit();
+            bootstrap.TickPresentation(bootstrap.settings.stageClearSeconds);
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(3));
+            Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.FinalVictory));
             Assert.That(Object.FindObjectsByType<GameSession>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
         }
         [Test] public void StageTwoRequiresEveryEnemyForVictoryAndSlotsAreIndependent()
@@ -741,13 +755,70 @@ namespace TankGame.Tests.PlayMode
             p.Tick(0.2f);
             Assert.That(p.IsAlive, Is.False); Assert.That(Player.Slots.Active, Is.Zero);
         }
-        [Test] public void InitialShotDoesNotHitShooterButRicochetCan()
+        void AssertDirectOwnerImmunity(TankActor owner)
+        {
+            MoveTanksAway();
+            owner.transform.position = new Vector3(0, session.Settings.planeHeight, 5);
+            int durability = owner.Life.RemainingDurability;
+            var projectile = SpawnFree(owner, new Vector3(-2, session.Settings.planeHeight, 5), Vector3.right);
+            Assert.That(projectile.Owner, Is.SameAs(owner));
+            session.Tick(0.4f);
+            Assert.That(owner.Life.IsAlive, Is.True);
+            Assert.That(owner.Life.RemainingDurability, Is.EqualTo(durability));
+            Assert.That(projectile.IsAlive, Is.True);
+            Assert.That(projectile.transform.position.x, Is.GreaterThan(0.5f));
+        }
+        [Test] public void PlayerProjectileDoesNotHitOwnerDirectly()
+        { AssertDirectOwnerImmunity(Player); }
+        [Test] public void MobileProjectileDoesNotHitOwner()
+        { AssertDirectOwnerImmunity(Enemy); }
+        [Test] public void SentryProjectileDoesNotHitOwner()
+        { LoadStageTwo(); AssertDirectOwnerImmunity(SecondEnemy); }
+        [Test] public void HeavyProjectileDoesNotHitOwner()
+        { LoadStageThree(); AssertDirectOwnerImmunity(Enemy); }
+        [Test] public void BurstProjectileDoesNotHitOwner()
+        { LoadStageThree(); AssertDirectOwnerImmunity(SecondEnemy); }
+        [Test] public void ReflectedPlayerProjectileDoesNotHitOwner()
         {
             Player.transform.position = new Vector3(-6, session.Settings.planeHeight, -3);
             Player.Turret.rotation = Quaternion.LookRotation(Vector3.back); Physics.SyncTransforms();
-            Player.TryFire(); Assert.That(Player.Life.IsAlive, Is.True);
+            Player.TryFire(); var projectile = session.Projectiles[0];
             session.Tick(1);
-            Assert.That(Player.Life.IsAlive, Is.False); Assert.That(session.Rules.State, Is.EqualTo(MatchState.Defeat));
+            Assert.That(projectile.Rules.Reflections, Is.EqualTo(1));
+            Assert.That(projectile.IsAlive, Is.True);
+            Assert.That(Player.Life.IsAlive, Is.True); Assert.That(session.Rules.State, Is.EqualTo(MatchState.Playing));
+        }
+        [Test] public void OwnerChildColliderIsIgnored()
+        {
+            MoveTanksAway();
+            Player.transform.position = new Vector3(0, session.Settings.planeHeight, 5);
+            var child = new GameObject("Owner Extra Collider"); child.layer = CollisionQueries.TankLayer;
+            child.transform.SetParent(Player.transform, false); child.transform.localPosition = Vector3.right * 0.9f;
+            child.AddComponent<SphereCollider>().radius = 0.35f; Physics.SyncTransforms();
+            var projectile = SpawnFree(Player, new Vector3(-2, session.Settings.planeHeight, 5), Vector3.right);
+            session.Tick(0.4f);
+            Assert.That(Player.Life.IsAlive, Is.True); Assert.That(projectile.IsAlive, Is.True);
+            Assert.That(projectile.transform.position.x, Is.GreaterThan(1.25f));
+        }
+        [Test] public void GlobalToiIgnoresOwnerThenReflectsFromWall()
+        {
+            MoveTanksAway();
+            Player.transform.position = new Vector3(0, session.Settings.planeHeight, 5);
+            CreateTestWall(2, 5, false);
+            var projectile = SpawnFree(Player, new Vector3(-2, session.Settings.planeHeight, 5), Vector3.right);
+            session.Tick(0.5f);
+            Assert.That(Player.Life.IsAlive, Is.True); Assert.That(projectile.IsAlive, Is.True);
+            Assert.That(projectile.Rules.Reflections, Is.EqualTo(1)); Assert.That(projectile.Direction.x, Is.LessThan(0));
+        }
+        [Test] public void GlobalToiIgnoresOwnerThenHitsOtherTank()
+        {
+            MoveTanksAway();
+            Player.transform.position = new Vector3(0, session.Settings.planeHeight, 5);
+            Enemy.transform.position = new Vector3(2, session.Settings.planeHeight, 5); Physics.SyncTransforms();
+            var projectile = SpawnFree(Player, new Vector3(-2, session.Settings.planeHeight, 5), Vector3.right);
+            session.Tick(0.5f);
+            Assert.That(Player.Life.IsAlive, Is.True); Assert.That(Enemy.Life.IsAlive, Is.False);
+            Assert.That(projectile.IsAlive, Is.False);
         }
         [Test] public void MuzzleCannotShootThroughWall()
         {
@@ -761,6 +832,16 @@ namespace TankGame.Tests.PlayMode
             readonly Vector3 move;
             public FixedCommand(Vector3 move) { this.move = move; }
             public TankCommand ReadCommand(in TankObservation observation) => new TankCommand(move, observation.Position + Vector3.forward, false);
+        }
+        sealed class AlwaysFireCommand : ITankController
+        {
+            public TankCommand ReadCommand(in TankObservation observation) =>
+                new TankCommand(Vector3.zero, observation.Position + Vector3.forward, true);
+        }
+        sealed class TargetFireCommand : ITankController
+        {
+            public TankCommand ReadCommand(in TankObservation observation) =>
+                new TankCommand(Vector3.zero, observation.Target, true);
         }
         [Test] public void DiagonalMoveIsNormalizedAndIndependentOfBodyHeading()
         {
@@ -895,6 +976,162 @@ namespace TankGame.Tests.PlayMode
             Assert.That(SecondEnemy.transform.position, Is.EqualTo(position)); Assert.That(SecondEnemy.Turret.rotation, Is.EqualTo(turret));
             Assert.That(session.Projectiles, Is.Empty);
         }
+        [Test] public void StageThreeIsValidAndContainsOneHeavyAndOneBurstBehindInitialCover()
+        {
+            Assert.That(StageValidator.Validate(bootstrap.stages, bootstrap.settings), Is.Empty);
+            LoadStageThree();
+            Assert.That(bootstrap.CurrentStage.enemies.Length, Is.EqualTo(2));
+            Assert.That(bootstrap.CurrentStage.enemies[0].archetype, Is.EqualTo(EnemyArchetype.Heavy));
+            Assert.That(bootstrap.CurrentStage.enemies[1].archetype, Is.EqualTo(EnemyArchetype.Burst));
+            foreach (var tank in new[] { Enemy, SecondEnemy })
+            {
+                Vector3 direction = tank.transform.position - Player.transform.position;
+                Assert.That(Physics.Raycast(Player.transform.position, direction.normalized, direction.magnitude,
+                    1 << CollisionQueries.WallLayer), Is.True);
+            }
+        }
+        [Test] public void HeavySurvivesFirstHitWithoutEnemyCountChangeAndDiesOnSecond()
+        {
+            LoadStageThree(); int before = session.Rules.EnemiesRemaining;
+            Enemy.Hit();
+            Assert.That(Enemy.Life.IsAlive, Is.True); Assert.That(Enemy.Life.RemainingDurability, Is.EqualTo(1));
+            Assert.That(session.Rules.EnemiesRemaining, Is.EqualTo(before));
+            Enemy.Hit();
+            Assert.That(Enemy.Life.IsAlive, Is.False); Assert.That(session.Rules.EnemiesRemaining, Is.EqualTo(before - 1));
+            Assert.That(session.Rules.State, Is.EqualTo(MatchState.Playing));
+        }
+        [Test] public void HeavyMovementProjectileSpeedAndColorDifferFromMobile()
+        {
+            LoadStageThree();
+            Assert.That(Enemy.MoveSpeed, Is.LessThan(bootstrap.stages[0].enemies[0].botSettings.moveSpeed));
+            Assert.That(Enemy.ProjectileSpeed, Is.LessThan(session.Settings.projectileSpeed));
+            Assert.That(Enemy.GetComponentsInChildren<Renderer>()[0].sharedMaterial, Is.SameAs(bootstrap.presentation.heavy));
+            MoveTanksAway(); Enemy.Turret.rotation = Quaternion.LookRotation(Vector3.forward); Physics.SyncTransforms();
+            Assert.That(Enemy.TryFire(), Is.True);
+            Assert.That(session.Projectiles[0].Speed, Is.EqualTo(session.Settings.heavyProjectileSpeed));
+        }
+        [Test] public void BurstFiresThreeAtConfiguredSpacingReloadAndNeverExceedsSlots()
+        {
+            LoadStageThree(); MoveTanksAway();
+            var controller = new BurstTankController(new AlwaysFireCommand(), session.Settings.burstShotCount,
+                session.Settings.burstSpacingSeconds, session.Settings.burstReloadSeconds);
+            SecondEnemy.Controller = controller; SecondEnemy.Turret.rotation = Quaternion.LookRotation(Vector3.forward);
+            session.Tick(0.01f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(1));
+            session.Tick(session.Settings.burstSpacingSeconds - 0.01f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(1));
+            session.Tick(0.01f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(2));
+            for (int i = 0; i < 9; i++) session.Tick(0.02f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(3));
+            session.Tick(0.01f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(3));
+            foreach (var projectile in session.Projectiles) projectile.Despawn();
+            Assert.That(SecondEnemy.Slots.Active, Is.Zero);
+            session.Tick(session.Settings.burstReloadSeconds - 0.02f);
+            Assert.That(SecondEnemy.Slots.Active, Is.Zero);
+            session.Tick(0.02f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(1));
+        }
+        [Test] public void BurstCancelsPendingShotsWhenLosIsLostAndStartsFreshAfterReload()
+        {
+            LoadStageThree(); MoveTanksAway();
+            Player.transform.position = new Vector3(-4, session.Settings.planeHeight, 5);
+            SecondEnemy.transform.position = new Vector3(4, session.Settings.planeHeight, 5);
+            SecondEnemy.Turret.rotation = Quaternion.LookRotation(Vector3.left);
+            var controller = new BurstTankController(new TargetFireCommand(), session.Settings.burstShotCount,
+                session.Settings.burstSpacingSeconds, session.Settings.burstReloadSeconds);
+            SecondEnemy.Controller = controller; Physics.SyncTransforms();
+
+            session.Tick(0.01f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(1));
+            Assert.That(controller.RemainingShots, Is.EqualTo(2));
+            var firstProjectile = session.Projectiles[0];
+            firstProjectile.transform.position = new Vector3(100, session.Settings.planeHeight, 100);
+            var blocker = CreateTestWall(-0.5f, 5, false);
+
+            session.Tick(session.Settings.burstSpacingSeconds);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(1));
+            Assert.That(controller.RemainingShots, Is.Zero);
+            Assert.That(controller.ReloadRemaining, Is.EqualTo(session.Settings.burstReloadSeconds).Within(0.0001f));
+
+            firstProjectile.Despawn(); blocker.SetActive(false); Physics.SyncTransforms();
+            session.Tick(session.Settings.burstReloadSeconds - 0.02f);
+            Assert.That(SecondEnemy.Slots.Active, Is.Zero);
+            session.Tick(0.02f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(1));
+            Assert.That(controller.RemainingShots, Is.EqualTo(2));
+            for (int i = 0; i < 18; i++) session.Tick(0.02f);
+            Assert.That(SecondEnemy.Slots.Active, Is.EqualTo(3));
+            Assert.That(controller.RemainingShots, Is.Zero);
+        }
+        [Test] public void BurstStopsOnOwnDeathAndTerminalState()
+        {
+            LoadStageThree(); MoveTanksAway();
+            var controller = new BurstTankController(new AlwaysFireCommand(), 3,
+                session.Settings.burstSpacingSeconds, session.Settings.burstReloadSeconds);
+            SecondEnemy.Controller = controller; SecondEnemy.Tick(0.01f);
+            Assert.That(controller.RemainingShots, Is.EqualTo(2));
+            SecondEnemy.Hit();
+            Assert.That(controller.RemainingShots, Is.Zero);
+
+            bootstrap.Restart(); bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
+            session = bootstrap.Session; session.AutoTick = false;
+            Player.transform.position = new Vector3(-4, session.Settings.planeHeight, 5);
+            Enemy.transform.position = new Vector3(4, session.Settings.planeHeight, 5);
+            Enemy.Turret.rotation = Quaternion.LookRotation(Vector3.left); Physics.SyncTransforms();
+            var terminalController = new BurstTankController(new AlwaysFireCommand(), 3,
+                session.Settings.burstSpacingSeconds, session.Settings.burstReloadSeconds);
+            Enemy.Controller = terminalController;
+            Enemy.Tick(0.01f); Assert.That(terminalController.RemainingShots, Is.EqualTo(2));
+            Player.Hit();
+            Assert.That(terminalController.RemainingShots, Is.Zero);
+            var observation = new TankObservation(Enemy.transform.position, Player.transform.position,
+                Enemy.Turret.forward, 1, true, 3);
+            Assert.That(terminalController.ReadCommand(in observation).Fire, Is.False);
+        }
+        [UnityTest] public IEnumerator BurstAndItsProjectilesAreCleanedOnRestartTransition()
+        {
+            LoadStageThree(); MoveTanksAway();
+            SecondEnemy.Controller = new BurstTankController(new AlwaysFireCommand(), 3,
+                session.Settings.burstSpacingSeconds, session.Settings.burstReloadSeconds);
+            SecondEnemy.Tick(0.01f); var oldSession = session; var oldBurst = SecondEnemy; var oldProjectile = session.Projectiles[0];
+            bootstrap.Restart(); yield return null;
+            Assert.That(oldSession == null, Is.True); Assert.That(oldBurst == null, Is.True); Assert.That(oldProjectile == null, Is.True);
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(1));
+        }
+        [Test] public void StageIntroShowsTitleThenGoAndLocksAllGameplay()
+        {
+            bootstrap.Restart(); session = bootstrap.Session; session.AutoTick = false;
+            Player.Controller = new FixedCommand(Vector3.right); var start = Player.transform.position;
+            Assert.That(bootstrap.OverlayText, Is.EqualTo("STAGE 1"));
+            Assert.That(Player.TryFire(), Is.False); Assert.That(session.TryPlaceMine(Player), Is.False);
+            session.Tick(1); Assert.That(Player.transform.position, Is.EqualTo(start));
+            bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds);
+            Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.Go)); Assert.That(bootstrap.OverlayText, Is.EqualTo("GO!"));
+            session.Tick(1); Assert.That(Player.transform.position, Is.EqualTo(start));
+            bootstrap.TickPresentation(bootstrap.settings.stageGoSeconds);
+            Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.Playing));
+            session.Tick(0.1f); Assert.That(Player.transform.position, Is.Not.EqualTo(start));
+        }
+        [Test] public void StageClearLocksGameplayThenTransitionsAfterDelay()
+        {
+            Assert.That(session.TryPlaceMine(Player), Is.True); var pendingMine = session.Mines[0];
+            Player.TryFire(); var projectile = session.Projectiles[0];
+            projectile.transform.position = new Vector3(100, session.Settings.planeHeight, 100); Physics.SyncTransforms();
+            var projectileStart = projectile.transform.position;
+            Enemy.Hit(); bootstrap.TickPresentation(0);
+            Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.StageClear));
+            Assert.That(bootstrap.OverlayText, Is.EqualTo("STAGE CLEAR"));
+            Assert.That(session.Mines, Is.Empty); Assert.That(pendingMine.IsArmed, Is.False);
+            Player.Controller = new FixedCommand(Vector3.right); var playerStart = Player.transform.position;
+            session.Tick(1);
+            Assert.That(Player.transform.position, Is.EqualTo(playerStart)); Assert.That(projectile.transform.position, Is.EqualTo(projectileStart));
+            bootstrap.TickPresentation(bootstrap.settings.stageClearSeconds - 0.01f);
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(1));
+            bootstrap.TickPresentation(0.01f);
+            Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2)); Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.StageTitle));
+        }
         [Test] public void DestructibleWallBlocksThenProjectileDestroysWithoutReflectionAndClearsPathAndLos()
         {
             LoadStageTwo();
@@ -916,87 +1153,127 @@ namespace TankGame.Tests.PlayMode
             Assert.That(pass.IsAlive, Is.True); Assert.That(pass.transform.position.x, Is.LessThan(4.5f));
             wall.Hit(); Assert.That(wall.IsAlive, Is.False);
         }
-        [Test] public void MineTriggersOnceForPlayerThroughDamagePathAndIgnoresProjectile()
+        [Test] public void MineStartsAtTwoAllowsTwoAndRejectsThird()
         {
-            LoadStageTwo();
-            var mine = session.Mines[0];
-            var projectile = SpawnFree(Player, mine.transform.position + Vector3.left * 2, Vector3.right); projectile.Advance(4);
+            Assert.That(session.MinesRemaining, Is.EqualTo(2)); Assert.That(session.Mines, Is.Empty);
+            Assert.That(session.TryPlaceMine(Player), Is.True);
+            Player.transform.position += Vector3.right * 2;
+            Assert.That(session.TryPlaceMine(Player), Is.True);
+            Assert.That(session.TryPlaceMine(Player), Is.False);
+            Assert.That(session.MinesRemaining, Is.Zero); Assert.That(session.Mines.Count, Is.EqualTo(2));
+            Assert.That(bootstrap.MineHudText, Is.EqualTo("MINES 0"));
+        }
+        [Test] public void MineWaitsOneSecondAndTankOrProjectileContactDoesNotTrigger()
+        {
+            Assert.That(session.TryPlaceMine(Player), Is.True); var mine = session.Mines[0];
+            var projectile = SpawnFree(Player, mine.transform.position + Vector3.left * 2, Vector3.right);
+            projectile.Advance(4);
             Assert.That(mine.IsArmed, Is.True); Assert.That(projectile.IsAlive, Is.True);
-            Player.transform.position = mine.transform.position; Physics.SyncTransforms();
-            Assert.That(mine.TryTrigger(Player), Is.True); Assert.That(Player.Life.IsAlive, Is.False);
-            Assert.That(session.Rules.State, Is.EqualTo(MatchState.Defeat)); Assert.That(mine.TryTrigger(Player), Is.False);
+            Enemy.transform.position = mine.transform.position; Physics.SyncTransforms();
+            session.Tick(0.99f);
+            Assert.That(mine.IsArmed, Is.True); Assert.That(Player.Life.IsAlive, Is.True); Assert.That(Enemy.Life.IsAlive, Is.True);
+            session.Tick(0.01f);
+            Assert.That(mine.IsArmed, Is.False); Assert.That(Player.Life.IsAlive, Is.False); Assert.That(Enemy.Life.IsAlive, Is.False);
         }
-        [Test] public void MineTriggersForEnemyAndUsesEnemyClearAccounting()
+        [Test] public void MineDamagesStandardEnemyThroughNormalEnemyAccounting()
         {
-            LoadStageTwo();
-            var mine = session.Mines[0]; Enemy.transform.position = mine.transform.position; Physics.SyncTransforms();
-            Assert.That(mine.TryTrigger(Enemy), Is.True); Assert.That(Enemy.Life.IsAlive, Is.False);
-            Assert.That(session.Rules.EnemiesRemaining, Is.EqualTo(1)); Assert.That(session.Rules.State, Is.EqualTo(MatchState.Playing));
-        }
-        [Test] public void PlayerCrossingMineTriggersThroughSessionTick()
-        {
-            LoadStageTwo();
-            Player.transform.position = new Vector3(0, session.Settings.planeHeight, -4);
-            Player.Controller = new FixedCommand(Vector3.right); Physics.SyncTransforms();
+            Assert.That(session.TryPlaceMine(Player), Is.True); var position = session.Mines[0].transform.position;
+            Player.transform.position = new Vector3(-8, session.Settings.planeHeight, 5);
+            Enemy.transform.position = new Vector3(position.x, session.Settings.planeHeight, position.z); Physics.SyncTransforms();
             session.Tick(1);
-            Assert.That(Player.Life.IsAlive, Is.False); Assert.That(session.Mines, Is.Empty);
+            Assert.That(Enemy.Life.IsAlive, Is.False); Assert.That(session.Rules.EnemiesRemaining, Is.Zero);
+            Assert.That(session.Rules.State, Is.EqualTo(MatchState.Victory));
         }
-        [Test] public void MobileEnemyCrossingMineTriggersThroughSessionTick()
+        [Test] public void OneMineDamagesPlayerAndHeavyExactlyOnce()
         {
-            LoadStageTwo();
-            Enemy.transform.position = new Vector3(0, session.Settings.planeHeight, -4);
-            Enemy.Controller = new FixedCommand(Vector3.right); Physics.SyncTransforms();
-            session.Tick(2);
-            Assert.That(Enemy.Life.IsAlive, Is.False); Assert.That(session.Rules.EnemiesRemaining, Is.EqualTo(1));
-        }
-        [Test] public void SentryStartingOnMineTriggersThroughSessionTick()
-        {
-            LoadStageTwo();
-            var mine = session.Mines[0];
-            SecondEnemy.transform.position = mine.transform.position;
-            SecondEnemy.Controller = SliceBootstrap.CreateEnemyController(bootstrap.CurrentStage.enemies[1]);
-            Physics.SyncTransforms(); session.Tick(0.1f);
-            Assert.That(SecondEnemy.Life.IsAlive, Is.False); Assert.That(session.Mines, Is.Empty);
-        }
-        [Test] public void TankPathOutsideMineRadiusDoesNotTrigger()
-        {
-            LoadStageTwo();
-            Player.transform.position = new Vector3(0, session.Settings.planeHeight, -2.8f);
-            Player.Controller = new FixedCommand(Vector3.right); Physics.SyncTransforms();
+            LoadStageThree();
+            Assert.That(session.TryPlaceMine(Player), Is.True); var position = session.Mines[0].transform.position;
+            Enemy.transform.position = new Vector3(position.x, session.Settings.planeHeight, position.z);
+            SecondEnemy.transform.position = new Vector3(8, session.Settings.planeHeight, 5); Physics.SyncTransforms();
             session.Tick(1);
-            Assert.That(Player.Life.IsAlive, Is.True); Assert.That(session.Mines.Count, Is.EqualTo(1));
+            Assert.That(Player.Life.IsAlive, Is.False);
+            Assert.That(Enemy.Life.IsAlive, Is.True); Assert.That(Enemy.Life.RemainingDurability, Is.EqualTo(1));
+            Assert.That(session.Rules.State, Is.EqualTo(MatchState.Defeat));
         }
-        [Test] public void HighDeltaTankCrossingMineCannotTunnelThrough()
+        [Test] public void MineExplosionCreatesOneVfxAndVfxCompletesItsOwnLifecycle()
         {
-            LoadStageTwo();
-            Player.transform.position = new Vector3(-6, session.Settings.planeHeight, -4);
-            Player.Controller = new FixedCommand(Vector3.right); Physics.SyncTransforms();
-            session.Tick(3);
-            Assert.That(Player.Life.IsAlive, Is.False); Assert.That(session.Mines, Is.Empty);
+            MoveTanksAway();
+            Assert.That(session.TryPlaceMine(Player), Is.True); var mine = session.Mines[0];
+            mine.Explode(); mine.Explode();
+            var effects = Object.FindObjectsByType<MineExplosionVfx>(FindObjectsSortMode.None);
+            Assert.That(effects, Has.Length.EqualTo(1));
+            var effect = effects[0]; effect.enabled = false;
+            Assert.That(effect.transform.parent, Is.EqualTo(session.transform));
+            Assert.That(effect.TargetDiameter, Is.EqualTo(session.Settings.mineBlastRadius * 2).Within(0.0001f));
+            Assert.That(effect.Lifetime, Is.EqualTo(0.30f).Within(0.0001f));
+            Assert.That(mine.gameObject.activeSelf, Is.False); Assert.That(effect.IsAlive, Is.True);
+            effect.Tick(0.29f);
+            Assert.That(effect.IsAlive, Is.True); Assert.That(effect.transform.localScale.x, Is.LessThan(effect.TargetDiameter));
+            effect.Tick(0.02f);
+            Assert.That(effect.IsAlive, Is.False); Assert.That(effect.gameObject.activeSelf, Is.False);
         }
-        [Test] public void ProjectileCrossingMineThroughSessionTickDoesNotTriggerIt()
+        [UnityTest] public IEnumerator StageTransitionAndRestartCleanLiveMineExplosionVfx()
         {
-            LoadStageTwo(); MoveTanksAway();
-            var projectile = SpawnFree(Player, new Vector3(0, session.Settings.planeHeight, -4), Vector3.right);
-            session.Tick(0.4f);
-            Assert.That(session.Mines.Count, Is.EqualTo(1)); Assert.That(session.Mines[0].IsArmed, Is.True);
-            Assert.That(projectile.IsAlive, Is.True);
+            MoveTanksAway();
+            Assert.That(session.TryPlaceMine(Player), Is.True); var mine = session.Mines[0];
+            Player.transform.position += Vector3.right * 3; mine.Explode();
+            var transitionEffect = Object.FindFirstObjectByType<MineExplosionVfx>(); transitionEffect.enabled = false;
+            Enemy.Hit(); Assert.That(bootstrap.AdvanceStageIfCleared(), Is.True); yield return null;
+            Assert.That(transitionEffect == null, Is.True);
+
+            bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
+            session = bootstrap.Session; session.AutoTick = false;
+            foreach (var tank in session.Tanks) tank.Controller = null;
+            MoveTanksAway(); Assert.That(session.TryPlaceMine(Player), Is.True); mine = session.Mines[0];
+            Player.transform.position += Vector3.right * 3; mine.Explode();
+            var restartEffect = Object.FindFirstObjectByType<MineExplosionVfx>(); restartEffect.enabled = false;
+            bootstrap.Restart(); yield return null;
+            Assert.That(restartEffect == null, Is.True);
+            Assert.That(Object.FindObjectsByType<MineExplosionVfx>(FindObjectsSortMode.None), Is.Empty);
+        }
+        [Test] public void MineIsBlockedDuringIntroClearAndTerminalPresentation()
+        {
+            bootstrap.Restart(); session = bootstrap.Session; session.AutoTick = false;
+            Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.StageTitle));
+            Assert.That(session.TryPlaceMine(Player), Is.False);
+            bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
+            Enemy.Hit(); bootstrap.TickPresentation(0);
+            Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.StageClear));
+            Assert.That(session.TryPlaceMine(Player), Is.False);
+            bootstrap.Restart(); bootstrap.TickPresentation(bootstrap.settings.stageTitleSeconds + bootstrap.settings.stageGoSeconds);
+            session = bootstrap.Session; session.AutoTick = false; Player.Hit(); bootstrap.TickPresentation(0);
+            Assert.That(bootstrap.Phase, Is.EqualTo(StagePresentationPhase.Defeat));
+            Assert.That(session.TryPlaceMine(Player), Is.False);
         }
         [Test] public void UndefinedEnemyBehaviorDoesNotFallBackToMobileController()
         {
             var invalid = bootstrap.CurrentStage.enemies[0]; invalid.behavior = (EnemyBehavior)999;
-            Assert.Throws<System.ArgumentOutOfRangeException>(() => SliceBootstrap.CreateEnemyController(invalid));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => SliceBootstrap.CreateEnemyController(invalid, bootstrap.settings));
+        }
+        [Test] public void UndefinedEnemyArchetypeDoesNotFallBackToStandard()
+        {
+            var invalid = bootstrap.CurrentStage.enemies[0]; invalid.archetype = (EnemyArchetype)999;
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => SliceBootstrap.CreateEnemyController(invalid, bootstrap.settings));
         }
         [UnityTest] public IEnumerator StageTransitionAndRestartCleanGimmicksWithoutDuplicates()
         {
-            Enemy.Hit(); bootstrap.AdvanceStageIfCleared(); session = bootstrap.Session; session.AutoTick = false;
+            LoadStageTwo(); Assert.That(session.TryPlaceMine(Player), Is.True);
             var wall = session.DestructibleWalls[0]; var mine = session.Mines[0];
             bootstrap.Restart(); yield return null;
             session = bootstrap.Session; session.AutoTick = false;
             Assert.That(wall == null, Is.True); Assert.That(mine == null, Is.True);
             Assert.That(session.DestructibleWalls, Is.Empty); Assert.That(session.Mines, Is.Empty);
+            Assert.That(session.MinesRemaining, Is.EqualTo(2));
             Assert.That(Object.FindObjectsByType<DestructibleWallActor>(FindObjectsSortMode.None), Is.Empty);
             Assert.That(Object.FindObjectsByType<MineActor>(FindObjectsSortMode.None), Is.Empty);
+        }
+        [UnityTest] public IEnumerator StageTransitionCleansMineAndResetsTwoUses()
+        {
+            Assert.That(session.TryPlaceMine(Player), Is.True); var oldMine = session.Mines[0];
+            Enemy.Hit(); Assert.That(bootstrap.AdvanceStageIfCleared(), Is.True); yield return null;
+            session = bootstrap.Session; session.AutoTick = false;
+            Assert.That(oldMine == null, Is.True); Assert.That(session.Mines, Is.Empty);
+            Assert.That(session.MinesRemaining, Is.EqualTo(2)); Assert.That(bootstrap.CurrentStageId, Is.EqualTo(2));
         }
         void PrepareRuntimeBotForClearShot()
         {

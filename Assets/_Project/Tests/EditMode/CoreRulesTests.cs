@@ -37,6 +37,13 @@ namespace TankGame.Tests.EditMode
         { Assert.That(ProjectileRules.RemainingDistance(distance, traveled), Is.EqualTo(expected)); }
         [Test] public void OneHitDestroysTankAndRepeatedHitIsIgnored()
         { var life = new TankLife(); Assert.That(life.Hit(), Is.True); Assert.That(life.IsAlive, Is.False); Assert.That(life.Hit(), Is.False); }
+        [Test] public void TwoDurabilityTankSurvivesFirstHitAndDiesOnSecond()
+        {
+            var life = new TankLife(2);
+            Assert.That(life.Hit(), Is.False); Assert.That(life.IsAlive, Is.True);
+            Assert.That(life.RemainingDurability, Is.EqualTo(1));
+            Assert.That(life.Hit(), Is.True); Assert.That(life.IsAlive, Is.False);
+        }
         [Test] public void OnlyLastEnemyCausesVictory()
         {
             var match = new MatchRules(2); match.TankDestroyed(false); Assert.That(match.State, Is.EqualTo(MatchState.Playing));
@@ -47,10 +54,12 @@ namespace TankGame.Tests.EditMode
         { var match = new MatchRules(1); match.TankDestroyed(true); match.TankDestroyed(false); Assert.That(match.State, Is.EqualTo(MatchState.Defeat)); }
         [Test] public void StageProgressionAdvancesOnceAndStopsAtLastStage()
         {
-            var progression = new StageProgression(2);
+            var progression = new StageProgression(3);
             Assert.That(progression.CurrentIndex, Is.Zero);
             Assert.That(progression.TryAdvance(), Is.True);
             Assert.That(progression.CurrentIndex, Is.EqualTo(1));
+            Assert.That(progression.TryAdvance(), Is.True);
+            Assert.That(progression.CurrentIndex, Is.EqualTo(2));
             Assert.That(progression.TryAdvance(), Is.False);
             progression.Restart(); Assert.That(progression.CurrentIndex, Is.Zero);
         }

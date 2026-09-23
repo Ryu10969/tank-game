@@ -10,23 +10,26 @@ namespace TankGame.Gameplay
         public Transform Body { get; private set; }
         public Transform Turret { get; private set; }
         public ITankController Controller { get; set; }
+        public float MoveSpeed => speed;
+        public float ProjectileSpeed { get; private set; }
         GameSession session;
         GameplaySettings settings;
         float speed;
 
-        public void Initialize(GameSession owner, bool player, Transform body, Transform turret, float moveSpeed)
+        public void Initialize(GameSession owner, bool player, Transform body, Transform turret, float moveSpeed,
+            int durability, float projectileSpeed)
         {
             session = owner; settings = owner.Settings; IsPlayer = player;
-            Body = body; Turret = turret; speed = moveSpeed;
-            Life = new TankLife(); Slots = new ShotSlots(settings.shotCapacity);
+            Body = body; Turret = turret; speed = moveSpeed; ProjectileSpeed = projectileSpeed;
+            Life = new TankLife(durability); Slots = new ShotSlots(settings.shotCapacity);
         }
         public void Tick(float deltaTime)
         {
-            if (!Life.IsAlive || Controller == null) return;
+            if (!Life.IsAlive || Controller == null || !session.GameplayEnabled || session.Rules.State != MatchState.Playing) return;
             Vector3 target = session.Player.transform.position;
             Vector3 toTarget = target - transform.position;
             bool clear = !Physics.Raycast(transform.position, toTarget.normalized, toTarget.magnitude, 1 << CollisionQueries.WallLayer);
-            var observation = new TankObservation(transform.position, target, Turret.forward, deltaTime, clear);
+            var observation = new TankObservation(transform.position, target, Turret.forward, deltaTime, clear, Slots.Available);
             var command = Controller.ReadCommand(in observation);
             // Interpret aim against the same position snapshot used by the controller.
             Vector3 aim = command.AimPoint - transform.position; aim.y = 0;
@@ -42,19 +45,26 @@ namespace TankGame.Gameplay
             if (aim.sqrMagnitude > 0.0001f)
                 Turret.rotation = Quaternion.RotateTowards(Turret.rotation, Quaternion.LookRotation(aim), settings.turretTurnSpeed * deltaTime);
             if (command.Fire) TryFire();
+            if (command.PlaceMine) session.TryPlaceMine(this);
         }
         public bool TryFire()
         {
-            if (!Life.IsAlive || session.Rules.State != MatchState.Playing || !Slots.TryAcquire()) return false;
+            if (!Life.IsAlive || !session.GameplayEnabled || session.Rules.State != MatchState.Playing || !Slots.TryAcquire()) return false;
             session.SpawnProjectile(this, Turret.forward);
             return true;
         }
         public void Hit()
         {
-            if (session.Rules.State != MatchState.Playing || !Life.Hit()) return;
+            if (!session.GameplayEnabled || session.Rules.State != MatchState.Playing || !ApplyDamage()) return;
+            session.ReportTankDestroyed(this);
+        }
+        internal bool ApplyDamage()
+        {
+            if (!Life.IsAlive || !Life.Hit()) return false;
             GetComponent<Collider>().enabled = false;
             foreach (var renderer in GetComponentsInChildren<Renderer>()) renderer.enabled = false;
-            session.Rules.TankDestroyed(IsPlayer);
+            if (Controller is IStoppableTankController stoppable) stoppable.Stop();
+            return true;
         }
     }
 }

@@ -370,6 +370,7 @@ MonoBehaviour:
   stages:
   - {fileID: 11400000, guid: 21d99270215ce4973ac0b71f40eb4020, type: 2}
   - {fileID: 11400000, guid: c3abc3b049b7843a7a40419d1bee4eab, type: 2}
+  - {fileID: 11400000, guid: a5a96fb9f1cb54ad79f12c23ce703342, type: 2}
   settings: {fileID: 11400000, guid: f6a24c0b6f359445b8371ea79bb13c41, type: 2}
   presentation: {fileID: 11400000, guid: 7645dd09e55a440039b56ed2952f5065, type: 2}
   gameCamera: {fileID: 1555367138}

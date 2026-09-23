@@ -16,7 +16,8 @@ Last updated: 2026-09-22
 
 - 戦車は車体と砲塔を分離する。
 - 車体の移動方向と砲塔の照準方向は独立して扱う。
-- プレイヤーとBOTは有効な弾丸が1発命中すると撃破される。
+- 既存のPlayer、Mobile、Sentry、Burstは耐久値1、Heavyは耐久値2とする。
+- 有効な攻撃は1 hitごとに耐久値を1減らし、0になった時だけ撃破する。
 - 撃破中の戦車は移動、照準、射撃を行えない。
 
 Phase 0のPC操作は次で固定する。
@@ -31,6 +32,7 @@ Phase 0のPC操作は次で固定する。
 - 移動は車体の旋回完了を待たない。
 - 照準: マウスカーソルからゲーム平面へRaycastし、その交点へ砲塔を向ける。
 - 射撃: マウス左ボタンの押下1回につき1発を要求する。
+- Mine設置: `Q`の押下1回につきPlayer現在位置へ1個設置する。
 - 左ボタンを押し続けても連射しない。
 - ゲーム画面外またはゲーム平面との交点を取得できない場合、直前の有効照準方向を維持する。
 
@@ -260,8 +262,8 @@ BOT v0の状態名とController境界は維持する。行動は次のように�
 - StageDefinitionはEnemyごとにSpawn、巡回点、BotSettings、Behaviorを保持する。全Enemy撃破時だけStage clearになる。
 - 既存Mobileに加えSentryを1種類追加する。Sentryは移動せず、直射LOSがある場合に既存反応時間・照準・射撃間隔・3発上限で射撃する。
 - Destructible WallはTankとLOSを遮り、Projectile 1 hitで壁とProjectileが消滅する。反射回数は増えない。破壊後はTank、Projectile、LOSが通過できる。
-- MineはStage配置型の中立hazard。Tankが範囲へ入ると既存`TankActor.Hit()`を1回だけ呼んで消滅する。Projectileでは起爆しない。
-- Enemy、Projectile、Ammo Indicator、Destructible Wall、MineはStage Runtime rootとともにStage遷移・Restartで破棄する。
+- Enemy、Projectile、Ammo Indicator、Destructible WallはStage Runtime rootとともにStage遷移・Restartで破棄する。
+- 本節当時のStage配置型Mineは誤仕様として廃止し、§12のPlayer Mineで置き換える。
 
 ### Stage 2追加配置
 
@@ -272,6 +274,66 @@ BOT v0の状態名とController境界は維持する。行動は次のように�
 | Sentry Enemy | Spawn (6,4) |
 | Normal Wall | 中央 (0,0)、6×2 |
 | Destructible Wall | 中央 (4,0)、1×2 |
-| Mine | (2,-4)、1個 |
 
-Stage 1の配置、Enemy数、Behavior、通常壁は変更しない。Stage 3以降、新武器、Projectile起爆Mine、HP 2以上の壁は対象外。
+Stage 1の配置、Enemy数、Behavior、通常壁は変更しない。新武器、Projectile起爆Mine、HP 2以上の壁は対象外。
+
+## 12. Enemy variety, Stage 3, and presentation milestone (2026-09-22)
+
+本節は本マイルストーンについて、§§2、4、10、11の「全Enemyが1 hit」、
+「Stage 2が最終Stage」、「Stage配置型の接触起爆Mine」を置き換える。
+
+### Enemy種別
+
+- `EnemyArchetype` はStandard、Heavy、Burstを明示的に扱い、未定義値はvalidatorとruntimeの両方で拒否する。
+- Heavyは緑、耐久値2、移動速度1.2 unit/s、弾速7 unit/s。既存Mobileの移動・照準・射撃状態機械を再利用する。
+- Burstは青、耐久値1、1 burst 3発、burst内間隔0.18秒、burst完了後reload 2.0秒。
+- Burstの各弾は共通`TankActor.TryFire()`と`ShotSlots`を通し、同時自弾は3発を超えない。3スロットが利用可能な時だけburstを開始する。
+- Burst開始には既存のLOS / fire条件を必要とし、pending shotの直前にも現在のLOSを確認する。LOSを失った場合は残りのburstをキャンセルして2.0秒reloadへ入り、LOS回復後もキャンセル済みの残弾は再開しない。
+- Burstは自身の撃破、match terminal、Stage切替で停止する。
+
+### Player Mine
+
+- MineはStageに事前配置せず、Playerが`Q`で現在位置へ任意に設置する。
+- 各Stageの開始時に2回。Stage切替とRestartで2回へ戻し、3回目は拒否する。2個の同時activeを許可する。
+- 設置から1.0秒のgameplay進行後に自動爆発する。Tank接触とProjectile接触では起爆しない。
+- 爆風の中心間半径は、旧graybox Mineで使用したTank半径0.5 + trigger余白0.55を維持した1.05 unitとする。
+- 爆風内のPlayerとEnemyそれぞれに1 damageを1回だけ適用する。Heavyの耐久値も1だけ減らす。
+- Stage終了、Stage切替、Restartで未爆発MineをRuntime rootとともに破棄する。
+- Stage Intro、Stage Clear、Final Victory、Defeat中は設置できず、Mineのヒューズも進行しない。HUDに残り回数を表示する。
+
+### Stage 3と進行
+
+- Stage 3はHeavy 1体とBurst 1体を含み、既存Normal WallとDestructible Wallだけを使う。Mineは事前配置しない。
+- 初期配置でPlayerへの直射LOSを遮り、Spawn直後の回避不能攻撃を作らない。
+- 進行はStage 1 → Stage 2 → Stage 3 → Final Victory。Defeat後のRestartはStage 1へ戻る。
+
+### Stage presentation
+
+- 各Stageは`STAGE N`を0.5秒、続けて`GO!`を0.5秒表示した後にgameplayを開始する。
+- 最後のEnemy撃破時は`STAGE CLEAR`を0.75秒表示し、次Stageへ進む。Stage 3の後はFinal Victoryを表示する。
+- IntroとClear中はTank入力、Enemy AI、Projectile、Mineを含むgameplay全体を停止する。
+
+### 受入条件
+
+1. Heavyは1 hit目で生存しEnemy残数が減らず、2 hit目で撃破される。移動速度と弾速はMobileより遅い。
+2. Burstは0.18秒間隔で3発を発射し、2.0秒のreloadと同時弾3発上限を守る。burst途中のLOS喪失で残弾をキャンセルし、reload完了まで次burstを開始しない。停止条件後も追加発射しない。
+3. Mineは各Stage 2回で、1秒後の爆発、接触非起爆、各Tankへ1 damage、cleanup、全presentation/terminal lockを満たす。
+4. Stage 3の定義とEnemy内訳がvalidatorを通り、Stage 1→2→3→Final VictoryとRestart→Stage 1が成立する。
+5. `STAGE N → GO!`と`STAGE CLEAR → transition`の表示順、時間、gameplay lockを自動テストで確認する。
+
+## 13. Mine explosion VFX and Projectile owner immunity (2026-09-23)
+
+本節は§§9、10の「初回反射後は射手に命中する」契約を置き換える。
+
+- Projectileは発射時のTankをownerとして寿命中保持し、反射回数にかかわらずownerを常にcollision / damage候補から除外する。
+- ownerの子を含む複数Colliderも同一Tankとして除外する。ownerを無視したProjectileは、その先のProjectile、Tank、Destructible Wall、Normal Wallと従来どおりinteractionする。
+- Projectile同士のclash、他Tankへのfriendly-fire、global TOIのpriority / order-independenceは変更しない。Mine damageはProjectile ownerの影響を受けない。
+- Mine爆発時は、damage判定と独立したgraybox用の球状VFXを1回生成する。中心から0.30秒で直径2.10 unit（爆発半径1.05）まで拡大して消滅する。
+- VFXはMine本体破棄後も寿命まで残るが、Stage Runtime rootの子とし、Stage切替とRestartで残留しない。半径、damage、ヒューズは変更しない。
+
+### 受入条件
+
+1. PlayerとStandard Mobile / Sentry / Heavy / BurstのProjectileは、直射と反射後のどちらでもownerにdamageを与えずdespawnしない。
+2. ownerに複数Colliderがあっても同じ保護が成立し、ownerの先の有効な候補をglobal TOIで処理する。
+3. Mine爆発1回に対しVFXが1個だけ生成され、0.30秒後に破棄される。Stage切替とRestartでも残留しない。
+4. 既存のMine damage、Projectile clash、global TOIの回帰テストを維持する。

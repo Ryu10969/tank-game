@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using TankGame.Editor;
 using TankGame.Gameplay;
+using TankGame.Presentation;
 using UnityEngine;
 namespace TankGame.Tests.EditMode
 {
@@ -43,6 +44,34 @@ namespace TankGame.Tests.EditMode
         {
             stage.enemies = new[] { new StageEnemy(new Vector2(6, 3), new[] { new Vector2(6, -3) }, bot, (EnemyBehavior)999) };
             Assert.That(StageValidator.Validate(new[] { stage }, 0.5f), Does.Contain("Undefined Enemy Behavior."));
+        }
+        [Test] public void UndefinedEnemyArchetypeIsRejected()
+        {
+            stage.enemies = new[] { new StageEnemy(new Vector2(6, 3), new[] { new Vector2(6, -3) }, bot,
+                EnemyBehavior.Mobile, (EnemyArchetype)999) };
+            Assert.That(StageValidator.Validate(new[] { stage }, 0.5f), Does.Contain("Undefined Enemy Archetype."));
+        }
+        [Test] public void FixedGameplaySettingsAreValidated()
+        {
+            var settings = ScriptableObject.CreateInstance<GameplaySettings>();
+            try
+            {
+                Assert.That(StageValidator.Validate(new[] { stage }, settings), Is.Empty);
+                settings.burstShotCount = 4;
+                Assert.That(StageValidator.Validate(new[] { stage }, settings), Does.Contain("Invalid Burst settings."));
+            }
+            finally { Object.DestroyImmediate(settings); }
+        }
+        [Test] public void MissingEnemyPresentationReferencesAreRejectedByBuildValidation()
+        {
+            var settings = ScriptableObject.CreateInstance<GameplaySettings>();
+            var presentation = ScriptableObject.CreateInstance<PrototypePresentation>();
+            try
+            {
+                Assert.Throws<System.InvalidOperationException>(() =>
+                    SliceProjectBuilder.ValidateMainStages(new[] { stage }, settings, presentation));
+            }
+            finally { Object.DestroyImmediate(settings); Object.DestroyImmediate(presentation); }
         }
         [Test] public void IsolatedEnemyIsRejected()
         {

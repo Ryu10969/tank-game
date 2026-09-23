@@ -140,11 +140,9 @@ Stage進行のindex管理はCoreのStageProgressionへ分離する。Presentatio
 
 StageDefinitionはStageEnemy配列を持ち、Enemy単位でSpawn、巡回点、BotSettings、Mobile/Sentryを指定する。
 GameSessionのMatchRulesはEnemy総数を受け取り、最後のEnemy撃破だけをStage clearにする。
-Destructible WallとMineはGameplay actor、形状とAmmo IndicatorはPresentationが担当する。
-これらはすべてGameSession以下へ生成し、既存Runtime rootの破棄だけでcleanupする。
-Mine判定はGameSessionのTank更新直後に行い、Projectile collision maskには含めない。
-Tankのtick開始位置と移動後位置をXZ平面の線分としてMine trigger円と比較し、開始時重複、
-移動中の横断、終了時重複を同じone-shot damage経路で処理する。
+Destructible WallはGameplay actor、形状とAmmo IndicatorはPresentationが担当する。
+これらはGameSession以下へ生成し、既存Runtime rootの破棄だけでcleanupする。
+このマイルストーン当時のStage配置型Mineは廃止し、下記Player Mine extensionで置き換えた。
 
 Projectileのproduction tickは全alive Projectileの位置、方向、速度、半径、残り移動時間を
 同じ時点で扱う。Projectile同士は相対運動へ変換したswept sphere同士のtime of impactを求め、
@@ -161,3 +159,32 @@ swept sphereの判別はdouble中間値を使い、discriminantの2項の大き�
 
 EnemyBehaviorはStageValidatorで定義済みenum値だけを許可する。runtimeのcontroller生成も
 Mobile/Sentryを明示的に分岐し、未知値はMobileへfallbackせず例外にする。
+
+## Enemy variety, Player Mine, and Stage presentation extension
+
+StageEnemyはAIの`EnemyBehavior`と性能・表示の`EnemyArchetype`を分離する。
+Heavyは共通TankLifeの初期耐久値、TankActorの移動速度とProjectileActorへ渡す弾速だけを変え、
+Mobile controllerを再利用する。BurstはMobile controllerを小さなburst schedulerで包み、
+各発は共通`TankActor.TryFire()`と`ShotSlots`を通す。両enumはvalidatorとruntime factoryでfail-fastにする。
+Burst schedulerはpending shotの前に毎回`TankObservation.ClearShot`を確認し、LOS喪失時は
+pending countを0にしてreloadへ移行する。内側Mobile / Sentry controllerの状態機械や射撃間隔は変更しない。
+
+MineはStageDefinitionの配置データから除去し、GameSessionがStageごとの使用回数、active Mine、
+ヒューズ、半径damageを管理する。HumanTankControllerはQを`TankCommand.PlaceMine`へ変換し、
+Gameplayは特定キーを直接参照しない。爆発対象はTank一覧から1回ずつ確定し、
+同一爆発内の破壊結果をMatchRulesへバッチ反映する。Runtime root破棄がMine cleanupの唯一経路である。
+
+Stage presentationはSliceBootstrapの`StageTitle / Go / Playing / StageClear / FinalVictory / Defeat`状態で管理する。
+GameSessionのgameplay gateをPlayingのみ有効にし、Tank、AI、Projectile、Mineを個別に停止させない。
+MatchRulesのVictory/DefeatとStageProgressionの一度だけの進行は維持する。
+
+## Mine VFX and Projectile owner immunity extension
+
+ProjectileActorは発射時の`TankActor Owner`を寿命中保持する。`CollisionQueries`は
+Colliderから親Tankを解決し、ownerのroot / child Colliderをstatic hit候補の収集時に除外する。
+このfilterは反射回数に依存しない。global TOIの候補集合、絶対最小TOI、priority、安定キーは変更しない。
+
+Mineのdamageは従来どおりGameplayの`ApplyMineExplosion`が担当する。VFX生成は
+GameSessionに注入したPresentation callbackを別途呼び、`PrimitiveFactory`がStage Runtime rootの子に
+primitiveを生成する。VFXは独自の0.30秒lifecycleを持ち、MineActorの破棄やdamage成否に依存しない。
+Stage Runtime root破棄がStage切替とRestartのcleanup境界となる。
