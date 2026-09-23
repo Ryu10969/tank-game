@@ -19,12 +19,19 @@ namespace TankGame.Core
 
     public sealed class TankLife
     {
-        public bool IsAlive { get; private set; } = true;
+        public int MaximumDurability { get; }
+        public int RemainingDurability { get; private set; }
+        public bool IsAlive => RemainingDurability > 0;
+        public TankLife(int durability = 1)
+        {
+            MaximumDurability = Math.Max(1, durability);
+            RemainingDurability = MaximumDurability;
+        }
         public bool Hit()
         {
             if (!IsAlive) return false;
-            IsAlive = false;
-            return true;
+            RemainingDurability--;
+            return !IsAlive;
         }
     }
 
@@ -36,10 +43,13 @@ namespace TankGame.Core
         public int EnemiesRemaining { get; private set; }
         public MatchRules(int enemies) { EnemiesRemaining = enemies; }
         public void TankDestroyed(bool player)
+        { TanksDestroyed(player, player ? 0 : 1); }
+        public void TanksDestroyed(bool playerDestroyed, int enemiesDestroyed)
         {
             if (State != MatchState.Playing) return;
-            if (player) State = MatchState.Defeat;
-            else if (--EnemiesRemaining == 0) State = MatchState.Victory;
+            if (playerDestroyed) { State = MatchState.Defeat; return; }
+            EnemiesRemaining = Math.Max(0, EnemiesRemaining - Math.Max(0, enemiesDestroyed));
+            if (EnemiesRemaining == 0) State = MatchState.Victory;
         }
     }
 

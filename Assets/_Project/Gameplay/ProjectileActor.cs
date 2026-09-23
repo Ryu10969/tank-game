@@ -7,23 +7,24 @@ namespace TankGame.Gameplay
         public ProjectileRules Rules { get; private set; }
         public bool IsAlive { get; private set; }
         public Vector3 Direction { get; private set; }
-        public TankActor Shooter => shooter;
-        internal float Speed => settings.projectileSpeed;
+        public TankActor Owner => owner;
+        public float Speed { get; private set; }
         internal float Radius => settings.projectileRadius;
         internal float SurfaceSeparation => settings.surfaceSeparation;
-        TankActor shooter;
+        TankActor owner;
         GameplaySettings settings;
         float age;
         public void Initialize(TankActor owner, GameplaySettings configuration, Vector3 direction)
         {
-            shooter = owner; settings = configuration; Direction = direction.normalized;
+            this.owner = owner; settings = configuration; Direction = direction.normalized;
+            Speed = owner.ProjectileSpeed;
             Rules = new ProjectileRules(settings.maximumReflections); IsAlive = true;
         }
         public void Tick(float deltaTime)
         {
             if (!IsAlive) return;
             float aliveTime = BeginSimulation(deltaTime);
-            Advance(settings.projectileSpeed * Mathf.Max(0, aliveTime));
+            Advance(Speed * Mathf.Max(0, aliveTime));
             EndSimulation();
         }
         internal float BeginSimulation(float deltaTime)
@@ -35,14 +36,14 @@ namespace TankGame.Gameplay
         }
         internal void Move(float seconds)
         {
-            if (IsAlive && seconds > 0) transform.position += Direction * (settings.projectileSpeed * seconds);
+            if (IsAlive && seconds > 0) transform.position += Direction * (Speed * seconds);
         }
         internal bool ResolveStaticHit(RaycastHit hit)
         {
             if (!IsAlive || hit.collider == null) return false;
             var destructibleWall = hit.collider.GetComponent<DestructibleWallActor>();
             if (destructibleWall != null) { destructibleWall.Hit(); Despawn(); return false; }
-            var tank = hit.collider.GetComponent<TankActor>();
+            var tank = CollisionQueries.TankFromCollider(hit.collider);
             if (tank != null) { tank.Hit(); Despawn(); return false; }
             if (!Rules.HitWall()) { Despawn(); return false; }
             Vector3 normal = hit.normal; normal.y = 0; normal.Normalize();
@@ -59,9 +60,8 @@ namespace TankGame.Gameplay
         {
             while (IsAlive && distance > 0)
             {
-                var ignore = Rules.Reflections == 0 ? shooter : null;
                 if (!CollisionQueries.FirstProjectileHit(transform.position, settings.projectileRadius, Direction, distance,
-                    ignore, this, settings.projectileSpeed * CollisionQueries.TimeEpsilon, out var hit))
+                    owner, this, Speed * CollisionQueries.TimeEpsilon, out var hit))
                 { transform.position += Direction * distance; return; }
                 transform.position += Direction * hit.distance;
                 distance = ProjectileRules.RemainingDistance(distance, hit.distance);
@@ -69,7 +69,7 @@ namespace TankGame.Gameplay
                 if (projectile != null) { Clash(projectile); return; }
                 var destructibleWall = hit.collider.GetComponent<DestructibleWallActor>();
                 if (destructibleWall != null) { destructibleWall.Hit(); Despawn(); return; }
-                var tank = hit.collider.GetComponent<TankActor>();
+                var tank = CollisionQueries.TankFromCollider(hit.collider);
                 if (tank != null) { tank.Hit(); Despawn(); return; }
                 if (!Rules.HitWall()) { Despawn(); return; }
                 Vector3 normal = hit.normal; normal.y = 0; normal.Normalize();
@@ -88,10 +88,10 @@ namespace TankGame.Gameplay
         {
             if (!IsAlive) return;
             IsAlive = false;
-            shooter.Slots.Release();
+            owner.Slots.Release();
             gameObject.SetActive(false);
             Destroy(gameObject);
         }
-        void OnDestroy() { if (IsAlive && shooter != null) { IsAlive = false; shooter.Slots.Release(); } }
+        void OnDestroy() { if (IsAlive && owner != null) { IsAlive = false; owner.Slots.Release(); } }
     }
 }

@@ -3,7 +3,8 @@
   "references": [
     "TankGame.Core",
     "TankGame.Gameplay",
-    "TankGame.Editor"
+    "TankGame.Editor",
+    "TankGame.Presentation"
   ],
   "noEngineReferences": false,
   "includePlatforms": [

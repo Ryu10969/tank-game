@@ -17,5 +17,18 @@ namespace TankGame.Gameplay
         [Min(0.1f)] public float projectileLifetime = 8;
         [Min(0.0001f)] public float surfaceSeparation = 0.002f;
         [Min(0)] public float muzzleDistance = 0.9f;
+        [Min(1)] public int defaultDurability = 1;
+        [Min(2)] public int heavyDurability = 2;
+        [Min(0.1f)] public float heavyMoveSpeed = 1.2f;
+        [Min(0.1f)] public float heavyProjectileSpeed = 7;
+        [Min(1)] public int burstShotCount = 3;
+        [Min(0.01f)] public float burstSpacingSeconds = 0.18f;
+        [Min(0.01f)] public float burstReloadSeconds = 2;
+        [Min(1)] public int mineCapacity = 2;
+        [Min(0.01f)] public float mineFuseSeconds = 1;
+        [Min(0.01f)] public float mineBlastRadius = 1.05f;
+        [Min(0.01f)] public float stageTitleSeconds = 0.5f;
+        [Min(0.01f)] public float stageGoSeconds = 0.5f;
+        [Min(0.01f)] public float stageClearSeconds = 0.75f;
     }
 }

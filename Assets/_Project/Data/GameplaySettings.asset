@@ -24,3 +24,16 @@ MonoBehaviour:
   projectileLifetime: 8
   surfaceSeparation: 0.002
   muzzleDistance: 0.9
+  defaultDurability: 1
+  heavyDurability: 2
+  heavyMoveSpeed: 1.2
+  heavyProjectileSpeed: 7
+  burstShotCount: 3
+  burstSpacingSeconds: 0.18
+  burstReloadSeconds: 2
+  mineCapacity: 2
+  mineFuseSeconds: 1
+  mineBlastRadius: 1.05
+  stageTitleSeconds: 0.5
+  stageGoSeconds: 0.5
+  stageClearSeconds: 0.75

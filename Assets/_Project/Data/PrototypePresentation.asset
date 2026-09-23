@@ -18,6 +18,8 @@ MonoBehaviour:
   mine: {fileID: 2100000, guid: 39f283c2bdd8542968df662e846d9a97, type: 2}
   player: {fileID: 2100000, guid: 67b0a303728a046d7a7f98688ceb2ae0, type: 2}
   enemy: {fileID: 2100000, guid: 142dbae459bf948e18b342991b4ad49b, type: 2}
+  heavy: {fileID: 2100000, guid: da1812416edf24c83b77109372d57a36, type: 2}
+  burst: {fileID: 2100000, guid: c478a2bd25109460f9fd99b7c8847232, type: 2}
   trim: {fileID: 2100000, guid: 9147a4250860743cb9f00916ff6fdbce, type: 2}
   projectile: {fileID: 2100000, guid: 9f63792ca4d3c4b728faf8ff36ed60e9, type: 2}
   wallHeight: 1.5

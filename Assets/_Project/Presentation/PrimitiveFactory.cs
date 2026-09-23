@@ -17,20 +17,38 @@ namespace TankGame.Presentation
             else go.layer = CollisionQueries.WallLayer;
             return go;
         }
-        public static TankActor Tank(GameSession session, Vector2 spawn, bool player, PrototypePresentation art, float moveSpeed)
+        public static TankActor Tank(GameSession session, Vector2 spawn, bool player, PrototypePresentation art,
+            float moveSpeed, EnemyArchetype archetype = EnemyArchetype.Standard)
         {
             var go = new GameObject(player ? "Player" : "Bot"); go.layer = CollisionQueries.TankLayer;
             go.transform.SetParent(session.transform); go.transform.position = StageDefinition.World(spawn, session.Settings.planeHeight);
             var collider = go.AddComponent<SphereCollider>(); collider.radius = session.Settings.tankRadius;
             var body = new GameObject("Body").transform; body.SetParent(go.transform, false);
-            Material material = player ? art.player : art.enemy;
+            Material material;
+            int durability = session.Settings.defaultDurability;
+            float projectileSpeed = session.Settings.projectileSpeed;
+            if (player) material = art.player;
+            else
+            {
+                switch (archetype)
+                {
+                    case EnemyArchetype.Standard: material = art.enemy; break;
+                    case EnemyArchetype.Heavy:
+                        material = art.heavy; durability = session.Settings.heavyDurability;
+                        moveSpeed = session.Settings.heavyMoveSpeed; projectileSpeed = session.Settings.heavyProjectileSpeed;
+                        break;
+                    case EnemyArchetype.Burst: material = art.burst; break;
+                    default: throw new System.ArgumentOutOfRangeException(nameof(archetype), archetype, "Undefined Enemy Archetype.");
+                }
+            }
             Shape("Chassis", PrimitiveType.Cube, body, Vector3.zero, art.bodyScale, material);
             Shape("Left runner", PrimitiveType.Cube, body, Vector3.left * art.treadOffset, art.treadScale, art.trim);
             Shape("Right runner", PrimitiveType.Cube, body, Vector3.right * art.treadOffset, art.treadScale, art.trim);
             var turret = new GameObject("Turret").transform; turret.SetParent(go.transform, false); turret.localPosition = art.turretPosition;
             Shape("Turret cap", player ? PrimitiveType.Cylinder : PrimitiveType.Cube, turret, Vector3.zero, art.turretScale, material);
             Shape("Barrel", PrimitiveType.Cube, turret, art.barrelPosition, art.barrelScale, art.trim);
-            var actor = go.AddComponent<TankActor>(); actor.Initialize(session, player, body, turret, moveSpeed); session.Register(actor);
+            var actor = go.AddComponent<TankActor>();
+            actor.Initialize(session, player, body, turret, moveSpeed, durability, projectileSpeed); session.Register(actor);
             return actor;
         }
         public static void Arena(Transform parent, StageDefinition stage, PrototypePresentation art)
@@ -49,12 +67,13 @@ namespace TankGame.Presentation
                 StageDefinition.World(wall.center, art.wallHeight / 2), new Vector3(wall.size.x, art.wallHeight, wall.size.y), art.destructibleWall, true);
             var actor = go.AddComponent<DestructibleWallActor>(); session.Register(actor); return actor;
         }
-        public static MineActor Mine(GameSession session, Vector2 position, PrototypePresentation art)
+        public static MineExplosionVfx MineExplosion(Transform parent, Vector3 center, float radius, PrototypePresentation art)
         {
-            const float radius = 0.55f;
-            var go = Shape("Mine", PrimitiveType.Cylinder, session.transform,
-                StageDefinition.World(position, 0.08f), new Vector3(0.8f, 0.08f, 0.8f), art.mine);
-            var actor = go.AddComponent<MineActor>(); actor.Initialize(session.Settings.tankRadius + radius); session.Register(actor); return actor;
+            var go = Shape("Mine Explosion VFX", PrimitiveType.Sphere, parent, center,
+                Vector3.one * 0.05f, art.mine);
+            var vfx = go.AddComponent<MineExplosionVfx>();
+            vfx.Initialize(radius, PrototypePresentation.MineExplosionVfxSeconds);
+            return vfx;
         }
         static void Wall(Transform parent, Vector2 center, Vector2 size, PrototypePresentation art)
         { Shape("Wood wall", PrimitiveType.Cube, parent, StageDefinition.World(center, art.wallHeight / 2), new Vector3(size.x, art.wallHeight, size.y), art.wall, true); }

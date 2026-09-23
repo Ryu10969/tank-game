@@ -8,6 +8,7 @@ namespace TankGame.Input
     {
         readonly InputAction move;
         readonly InputAction fire;
+        readonly InputAction mine;
         readonly Camera camera;
         readonly Plane plane;
         readonly AimMemory aim;
@@ -18,7 +19,8 @@ namespace TankGame.Input
             move = new InputAction("Move", InputActionType.Value);
             move.AddCompositeBinding("2DVector").With("Up", "<Keyboard>/w").With("Down", "<Keyboard>/s").With("Left", "<Keyboard>/a").With("Right", "<Keyboard>/d");
             fire = new InputAction("Fire", InputActionType.Button, "<Mouse>/leftButton");
-            move.Enable(); fire.Enable();
+            mine = new InputAction("Place Mine", InputActionType.Button, "<Keyboard>/q");
+            move.Enable(); fire.Enable(); mine.Enable();
         }
         public TankCommand ReadCommand(in TankObservation observation)
         {
@@ -37,8 +39,9 @@ namespace TankGame.Input
             Vector3 right = Vector3.ProjectOnPlane(camera.transform.right, Vector3.up).normalized;
             Vector3 up = Vector3.ProjectOnPlane(camera.transform.up, Vector3.up).normalized;
             bool fireRequested = fireGate.Read(fire.WasPressedThisFrame(), fire.IsPressed());
-            return new TankCommand(right * input.x + up * input.y, aim.Resolve(observation.Position, hitPoint), inside && fireRequested);
+            return new TankCommand(right * input.x + up * input.y, aim.Resolve(observation.Position, hitPoint),
+                inside && fireRequested, mine.WasPressedThisFrame());
         }
-        public void Dispose() { move.Dispose(); fire.Dispose(); }
+        public void Dispose() { move.Dispose(); fire.Dispose(); mine.Dispose(); }
     }
 }

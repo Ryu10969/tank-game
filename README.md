@@ -2,7 +2,7 @@
 
 反射角を読む、木製玩具調の2.5Dトップダウン戦車ゲームです。
 Unity 6000.3.11f1 / URP / 新Input Systemを使用しています。
-現在の成果はPhase 0の途中段階である、Stage 1〜2のCore Vertical Sliceです。
+現在の成果はPhase 0の途中段階である、Stage 1〜3のCore Vertical Sliceです。
 
 ## 遊び方
 
@@ -10,12 +10,15 @@ Unity 6000.3.11f1 / URP / 新Input Systemを使用しています。
 
 - WASD: 画面基準の移動。マウス: 砲塔の照準。
 - 左クリック: 押下ごとに1発。長押しでは連射しません。
+- `Q`: Player現在位置にMineを設置。各Stage 2回、1秒後に自動爆発し、残数はHUDに表示します。
 - 自弾は同時3発まで。消滅すると枠が回復します。
 - 残弾はPlayer Tank直下の3-slot（`●`利用可能 / `○`field上）で表示します。
-- プレイヤー弾・敵弾とも壁で1回だけ反射し、次の壁接触で消滅します。反射後の自弾にも被弾します。
+- プレイヤー弾・敵弾とも壁で1回だけ反射し、次の壁接触で消滅します。反射後も発射したTank本人には命中しません。
 - Projectile同士は陣営を問わず接触時に相殺します。
-- Stage 1の敵全滅でStage 2へ進み、Stage 2の敵全滅でVICTORYになります。
-- Stage 2にはMobile Enemy、固定Sentry、破壊可能壁、Tank接触で発動するMineがあります。
+- 各Stageは`STAGE N` → `GO!`の後に開始し、敵全滅時は`STAGE CLEAR`を表示してから次へ進みます。
+- Stage 1 → Stage 2 → Stage 3と進み、Stage 3の敵全滅でVICTORYになります。
+- Stage 2にはMobile Enemy、固定Sentry、破壊可能壁があります。Stage事前配置Mineはありません。
+- Stage 3には緑の2-hit Heavyと青の3連射Burstがいます。
 - 被弾でDEFEAT。RESTARTでStage 1を最初から遊べます。
 
 ## 検証・Webビルド
@@ -50,5 +53,5 @@ batchmodeの`-executeMethod TankGame.Editor.SliceProjectBuilder.Validate`で実�
 - [ADR-0002: Stage data and core slice](docs/adr/ADR-0002-stage-data-and-core-slice.md)
 - [Asset provenance](docs/ASSET_PROVENANCE.md)
 
-Phase 0全体のStage 3〜10、音声、最終品質アート、第三者プレイテストは未完了です。
-オンライン、課金、セーブ、強化、追加Enemyタイプ、モバイル固有操作は今回の対象外です。
+Phase 0全体のStage 4〜10、音声、最終品質アート、第三者プレイテストは未完了です。
+オンライン、課金、セーブ、強化、Boss・新武器、モバイル固有操作は今回の対象外です。

@@ -1,5 +1,47 @@
 # Core Vertical Slice implementation history
 
+## Review follow-up: Burst LOS cancellation and obsolete Mine API
+
+Date: 2026-09-23 (JST)
+Branch: `feat/enemy-variety-stage3-presentation`
+
+- Burstのpending shotがLOSを再確認していなかったため、各pending shot前に`TankObservation.ClearShot`を検査するよう修正。喪失時は残弾を破棄して通常reloadへ移行し、LOS回復時に旧burstを再開しない。
+- 実Colliderで`1発目 → LOS遮断 → 残り2発キャンセル → reload中は停止 → LOS回復・reload完了後に新規3連射`をproduction pathで検証。
+- repository全体で参照がない旧Stage配置Mine由来の`GameSession.Register(MineActor)`を削除。`TryPlaceMine`のlist追加、lifecycle、cleanup、resetは変更なし。
+- 最終検証はbootstrap PASS、EditMode 25/25、PlayMode 118/118、計143件、WebGL 59,698,536 bytes、failed / skipped / inconclusive 0、C# compiler error / warning 0 / 0、`git diff --check` PASS。
+
+## Current update: Mine explosion VFX and Projectile owner immunity
+
+Date: 2026-09-23 (JST)
+Branch: `feat/enemy-variety-stage3-presentation`
+
+- Mine爆発はdamageとPresentation生成を分離し、既存Sphere primitiveとMine materialで半径1.05を0.30秒で示すgraybox VFXを1回生成する。Mine破棄後も寿命まで残り、Runtime root破棄でcleanupされる。
+- ProjectileActorは発射時Tankを`Owner`として保持し、反射後もownerのroot / child ColliderをSphereCast候補から除外する。global TOI comparator、Projectile clash、他Tankへのfriendly-fireは変更していない。
+- Player / Mobile / Sentry / Heavy / Burstの直射owner immunity、Playerの反射後immunity、複数Collider、owner後方のWall / Tank、VFXの1回生成・寿命・Stage切替 / Restart cleanupをPlayModeに追加した。
+- 最終検証はbootstrap PASS、EditMode 25/25、PlayMode 117/117、計142件、WebGL 59,698,525 bytes、failed / skipped / inconclusive 0、C# compiler error / warning 0 / 0、`git diff --check` PASS。
+- 今回のMine Explosion VFXとowner immunityのWebGL手動操作は未実施。自動テストとbuildはPASS。
+
+## Current update: enemy variety, Stage 3, and presentation
+
+Date: 2026-09-23 (JST)
+Branch: `feat/enemy-variety-stage3-presentation`
+
+- `TankLife`を耐久値指定可能に最小一般化し、緑のHeavyだけを2 hit、移動1.2、弾速7にした。
+- 青のBurstは既存Mobile controllerを包むschedulerで、0.18秒間隔の3連射、2.0秒reloadを実装。各弾は共通`TryFire` / `ShotSlots`を通る。
+- 旧Stage配置・接触起爆MineとStage dataを削除。QでPlayer位置へ各Stage 2回設置、1秒後に半径1.05で1 damageを各1回適用する。
+- Stage 3にHeavy 1体、Burst 1体、Normal Wall、Destructible Wallを配置。初期LOSは壁で遮蔽する。
+- `STAGE N` 0.5秒 → `GO!` 0.5秒 → Playing、全滅後`STAGE CLEAR` 0.75秒 → 次Stage / Final Victoryを実装。演出中はGameSession gateで全gameplayを停止する。
+- `EnemyBehavior`に加え`EnemyArchetype`もvalidator/runtimeの両方でfail-fast。Heavy/Burst/Mine/進行/演出と既存回帰を自動テスト化した。
+- 外部・AI生成assetなし。Heavy/Burstの識別色materialは既存Editor builderでローカル生成したgraybox。
+- 最終検証はbootstrap PASS、EditMode 25/25、PlayMode 107/107、WebGL 59,693,526 bytes、
+  failed / skipped / inconclusive 0、C# compiler error / warning 0 / 0、`git diff --check` PASS。
+- ローカルWebGLでStage 1 intro、Ammo slots、Q Mine、`MINES 2 → 1`、約1秒後の自爆Defeat、
+  Restart後の2 reset、browser console warning/error 0件を確認。狭幅時のMine HUD切れを発見・修正し、再確認した。
+- Stage Clear、Stage 3のHeavy/Burst、Stage 3 Clear→Final VictoryのWebGL手動操作は未実施。該当PlayModeテスはPASS。
+
+以下のStage配置Mine、Stage 2最終Victory、過去のテスト件数は履歴記録であり、
+現行仕様はGAMEPLAY_SPEC §§12、13とCURRENT_STATEを優先する。
+
 ## Current update: combat interactions and Stage gimmicks
 
 Date: 2026-09-22 (JST)

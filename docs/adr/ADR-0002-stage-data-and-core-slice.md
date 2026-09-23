@@ -40,3 +40,22 @@ Mobile/Sentry Behaviorをデータ化する。GameSessionは一覧数をMatchRul
 
 Projectile clashはUnity collision callbackへ依存せず既存SphereCastの衝突分類へ統合する。
 Projectileの`IsAlive`をterminal guard、既存Despawnを発射枠返却の唯一経路として維持する。
+
+## Amendment: enemy variety, Stage 3, and Player Mine (2026-09-22)
+
+Stage順序データにStage 3を追加し、StageEnemyはAI行動とEnemy種別を別enumで保持する。
+Heavy/Burst用にcontroller全体を複製せず、HeavyはTank設定値、BurstはMobile controllerの包装で差分を与える。
+Burstの包装はpending shotごとに現在のLOSを検査し、喪失時は残弾をキャンセルしてreloadへ移行する。
+
+旧Stage配置型Mineは誤仕様として廃止する。StageDefinitionからMine配置データを除去し、
+Player入力からGameSessionのStage単位使用回数を消費してRuntime Mineを生成する。
+Stage切替とRestartは従来どおりRuntime rootを丸ごと破棄し、発射枠、Mine残数、未爆発Mineを同じ境界でresetする。
+
+## Amendment: permanent Projectile owner immunity and Mine explosion VFX (2026-09-23)
+
+本ADRの「射手は初回反射まで除外」は履歴として残し、現行決定はGAMEPLAY_SPEC §13で置き換える。
+Projectile ownerは反射後も常にTank collision候補から除外する。親Tank解決で複数Colliderを
+同一ownerとして扱い、global TOI arbitration自体の順序とpriorityは変更しない。
+
+Mine爆発VFXはStage dataではなくPresentationのruntime primitiveとし、damage処理と分離する。
+GameSessionから注入callbackで生成し、Runtime root配下に置くことでStage lifecycleのcleanupを再利用する。

@@ -10,22 +10,33 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ae1e2c9a5b29a4f0a832d9021fdb2799, type: 3}
-  m_Name: Stage1
+  m_Name: Stage3
   m_EditorClassIdentifier: TankGame.Gameplay::TankGame.Gameplay.StageDefinition
-  stageId: 1
+  stageId: 3
   size: {x: 20, y: 14}
-  playerSpawn: {x: -6, y: -3}
+  playerSpawn: {x: -7, y: 0}
   enemies:
   - spawn: {x: 6, y: 3}
     patrolPoints:
-    - {x: 6, y: -3}
-    - {x: 6, y: 3}
+    - {x: 6, y: 0}
+    - {x: 5, y: 4}
+    - {x: 7, y: 3}
     botSettings: {fileID: 11400000, guid: 465a7d5942db6497fa2c68a7468593bf, type: 2}
     behavior: 0
-    archetype: 0
+    archetype: 1
+  - spawn: {x: 6, y: -3}
+    patrolPoints:
+    - {x: 6, y: 0}
+    - {x: 5, y: -4}
+    - {x: 7, y: -3}
+    botSettings: {fileID: 11400000, guid: 465a7d5942db6497fa2c68a7468593bf, type: 2}
+    behavior: 0
+    archetype: 2
   walls:
   - center: {x: 0, y: 0}
     size: {x: 2, y: 4}
-  destructibleWalls: []
+  destructibleWalls:
+  - center: {x: 3, y: 0}
+    size: {x: 1, y: 2}
   themeId: wood-prototype
   boundaryThickness: 1

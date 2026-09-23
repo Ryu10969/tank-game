@@ -5,6 +5,33 @@ namespace TankGame.Gameplay
     public static class StageValidator
     {
         // The prototype uses axis-aligned walls, integer spawns and a 1-unit validation grid.
+        public static List<string> Validate(IReadOnlyList<StageDefinition> stages, GameplaySettings settings)
+        {
+            if (settings == null) return new List<string> { "Missing GameplaySettings." };
+            var errors = Validate(stages, settings.tankRadius);
+            if (settings.defaultDurability != 1 || settings.heavyDurability != 2)
+                errors.Add("Tank durability settings must be Standard 1 and Heavy 2.");
+            if (settings.heavyMoveSpeed <= 0 || settings.heavyProjectileSpeed <= 0 ||
+                settings.heavyProjectileSpeed >= settings.projectileSpeed)
+                errors.Add("Heavy speed settings must be positive and Heavy projectile speed must be slower than Standard.");
+            if (settings.burstShotCount != 3 || settings.burstShotCount > settings.shotCapacity ||
+                settings.burstSpacingSeconds <= 0 || settings.burstReloadSeconds <= settings.burstSpacingSeconds * (settings.burstShotCount - 1))
+                errors.Add("Invalid Burst settings.");
+            if (settings.mineCapacity != 2 || !Mathf.Approximately(settings.mineFuseSeconds, 1) || settings.mineBlastRadius <= 0)
+                errors.Add("Invalid Mine settings.");
+            if (!Mathf.Approximately(settings.stageTitleSeconds, 0.5f) || !Mathf.Approximately(settings.stageGoSeconds, 0.5f) ||
+                settings.stageClearSeconds <= 0)
+                errors.Add("Invalid Stage presentation settings.");
+            if (stages != null)
+                foreach (var stage in stages)
+                    if (stage != null && stage.enemies != null)
+                        foreach (var enemy in stage.enemies)
+                            if (enemy.archetype == EnemyArchetype.Heavy && enemy.botSettings != null &&
+                                settings.heavyMoveSpeed >= enemy.botSettings.moveSpeed)
+                                errors.Add("Heavy movement speed must be slower than Mobile.");
+            return errors;
+        }
+
         public static List<string> Validate(IReadOnlyList<StageDefinition> stages, float tankRadius)
         {
             var errors = new List<string>();
@@ -23,7 +50,7 @@ namespace TankGame.Gameplay
                 if (stage.stageId < 1 || stage.size.x < 2 || stage.size.y < 2 || stage.boundaryThickness <= 0)
                     errors.Add("Invalid Stage dimensions or ID.");
                 if (string.IsNullOrWhiteSpace(stage.themeId)) errors.Add("Missing required Stage reference.");
-                if (stage.enemies == null || stage.enemies.Length == 0 || stage.walls == null || stage.destructibleWalls == null || stage.mines == null)
+                if (stage.enemies == null || stage.enemies.Length == 0 || stage.walls == null || stage.destructibleWalls == null)
                 { errors.Add("Missing Stage arrays."); continue; }
                 foreach (var wall in stage.walls)
                     if (wall.size.x <= 0 || wall.size.y <= 0) errors.Add("Invalid wall size.");
@@ -35,7 +62,10 @@ namespace TankGame.Gameplay
                     spawns.Add(enemy.spawn);
                     if (enemy.botSettings == null) errors.Add("Missing Enemy BotSettings.");
                     if (!System.Enum.IsDefined(typeof(EnemyBehavior), enemy.behavior)) errors.Add("Undefined Enemy Behavior.");
+                    if (!System.Enum.IsDefined(typeof(EnemyArchetype), enemy.archetype)) errors.Add("Undefined Enemy Archetype.");
                     if (enemy.behavior == EnemyBehavior.Mobile && (enemy.patrolPoints == null || enemy.patrolPoints.Length == 0)) errors.Add("Mobile Enemy requires patrol points.");
+                    if ((enemy.archetype == EnemyArchetype.Heavy || enemy.archetype == EnemyArchetype.Burst) && enemy.behavior != EnemyBehavior.Mobile)
+                        errors.Add("Heavy and Burst require Mobile behavior.");
                 }
                 foreach (var spawn in spawns)
                     if (!Walkable(stage, spawn, tankRadius)) errors.Add("Spawn outside Stage or overlapping wall.");
@@ -63,12 +93,17 @@ namespace TankGame.Gameplay
                     if (enemy.patrolPoints != null)
                         foreach (var patrol in enemy.patrolPoints)
                             if (!Walkable(stage, patrol, tankRadius) || !visited.Contains(Vector2Int.RoundToInt(patrol))) errors.Add("Patrol is unreachable.");
-                foreach (var mine in stage.mines)
+                if (stage.stageId == 3)
                 {
-                    if (!Inside(stage, mine, 0.55f) || InsideWall(stage.walls, mine, 0.55f) || InsideWall(stage.destructibleWalls, mine, 0.55f))
-                        errors.Add("Mine outside Stage or overlapping wall.");
-                    foreach (var spawn in spawns)
-                        if (Vector2.Distance(mine, spawn) < tankRadius + 0.55f) errors.Add("Mine overlaps Spawn.");
+                    int heavy = 0, burst = 0;
+                    foreach (var enemy in stage.enemies)
+                    {
+                        if (enemy.archetype == EnemyArchetype.Heavy) heavy++;
+                        if (enemy.archetype == EnemyArchetype.Burst) burst++;
+                    }
+                    if (heavy != 1 || burst != 1) errors.Add("Stage 3 requires exactly one Heavy and one Burst.");
+                    if (stage.walls.Length == 0 || stage.destructibleWalls.Length == 0)
+                        errors.Add("Stage 3 requires Normal and Destructible Walls.");
                 }
             }
             return errors;
